@@ -74,9 +74,14 @@ class _ServiceFeedbackSheetState extends State<ServiceFeedbackSheet> {
   Widget build(BuildContext context) {
     final c = context.rg;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // Cap the sheet so it can never grow taller than the screen (which clipped
+    // the Skip/Submit row off the bottom on smaller devices / large font scale →
+    // "no submit button"). The rating fields scroll; the actions stay pinned.
+    final maxH = MediaQuery.of(context).size.height * 0.9;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
+        constraints: BoxConstraints(maxHeight: maxH),
         decoration: BoxDecoration(
           color: c.ground2,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -90,43 +95,56 @@ class _ServiceFeedbackSheetState extends State<ServiceFeedbackSheet> {
               child: Container(width: 40, height: 4, decoration: BoxDecoration(color: c.line, borderRadius: BorderRadius.circular(2))),
             ),
             const SizedBox(height: 16),
-            Text(_heading, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 17)),
-            const SizedBox(height: 2),
-            Text(Strings.of(context).yourFeedbackHelpsUsImproveOptional, style: TextStyle(color: c.muted, fontSize: 12.5)),
-            const SizedBox(height: 18),
+            // Scrollable content: heading + ratings + note. Lets the sheet shrink
+            // to fit while keeping the action row (below) always on screen.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_heading, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 17)),
+                    const SizedBox(height: 2),
+                    Text(Strings.of(context).yourFeedbackHelpsUsImproveOptional, style: TextStyle(color: c.muted, fontSize: 12.5)),
+                    const SizedBox(height: 18),
 
-            _StarRow(label: Strings.of(context).overallExperience, value: _overall, onChanged: (v) => setState(() => _overall = v)),
-            const SizedBox(height: 14),
-            _StarRow(
-              label: _isLive ? Strings.of(context).streamQuality : Strings.of(context).connectionQuality,
-              value: _connection,
-              onChanged: (v) => setState(() => _connection = v),
-            ),
-            const SizedBox(height: 14),
-            _StarRow(
-              label: _isLive ? Strings.of(context).audienceBehaviour : Strings.of(context).seekerBehaviour,
-              value: _seeker,
-              onChanged: (v) => setState(() => _seeker = v),
-            ),
-            const SizedBox(height: 16),
+                    _StarRow(label: Strings.of(context).overallExperience, value: _overall, onChanged: (v) => setState(() => _overall = v)),
+                    const SizedBox(height: 14),
+                    _StarRow(
+                      label: _isLive ? Strings.of(context).streamQuality : Strings.of(context).connectionQuality,
+                      value: _connection,
+                      onChanged: (v) => setState(() => _connection = v),
+                    ),
+                    const SizedBox(height: 14),
+                    _StarRow(
+                      label: _isLive ? Strings.of(context).audienceBehaviour : Strings.of(context).seekerBehaviour,
+                      value: _seeker,
+                      onChanged: (v) => setState(() => _seeker = v),
+                    ),
+                    const SizedBox(height: 16),
 
-            TextField(
-              controller: _note,
-              maxLines: 3,
-              maxLength: 1000,
-              style: TextStyle(color: c.ink),
-              decoration: InputDecoration(
-                hintText: Strings.of(context).anythingYouWantToShareOptional,
-                hintStyle: TextStyle(color: c.muted),
-                filled: true,
-                fillColor: c.ground,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.red)),
-                counterStyle: TextStyle(color: c.muted),
+                    TextField(
+                      controller: _note,
+                      maxLines: 3,
+                      maxLength: 1000,
+                      style: TextStyle(color: c.ink),
+                      decoration: InputDecoration(
+                        hintText: Strings.of(context).anythingYouWantToShareOptional,
+                        hintStyle: TextStyle(color: c.muted),
+                        filled: true,
+                        fillColor: c.ground,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.line)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: c.red)),
+                        counterStyle: TextStyle(color: c.muted),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),
+            // Pinned action row — always visible regardless of content height.
             Row(
               children: [
                 TextButton(
