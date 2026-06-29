@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "989465603805",
+    "project_id": "astro-phase-2",
+    "storage_bucket": "astro-phase-2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989465603805:android:86fb5e55dab74b7684b534",
+        "android_client_info": {
+          "package_name": "com.rudraganga.rg_astrologer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLoFQiB63oBl8MEfZhB5LcQVvggSQEUUY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989465603805:android:08810295d95e238f84b534",
+        "android_client_info": {
+          "package_name": "com.rudraganga.rg_user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLoFQiB63oBl8MEfZhB5LcQVvggSQEUUY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

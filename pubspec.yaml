@@ -1,0 +1,96 @@
+name: rg_astrologer
+description: "Rudraganga — Astrologer Console (UI)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Material/Cupertino localizations for the 6 supported languages (silences the
+  # "locale not supported by delegates" warning; built-in widgets get localized).
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.2
+
+  # HTTP client (talks to the Rudraganga backend; mirrors the user app).
+  dio: ^5.4.0
+
+  # Secure token storage (Keychain / Keystore) for the JWT session.
+  flutter_secure_storage: ^9.0.0
+
+  # Runtime permissions (notifications, mic, camera, photos) + version-aware
+  # photos permission across Android 9+. Mirrors the user app. NO location.
+  permission_handler: ^11.3.0
+  device_info_plus: ^10.1.0
+
+  # Realtime socket (presence + incoming requests + notifications). Mirrors the
+  # user app; connects with the JWT in handshake.auth after login.
+  socket_io_client: ^2.0.3+1
+
+  # Agora RTC — audio/video consultation calls. Cloud recording is handled
+  # server-side; the client only joins the channel. Mirrors the user app.
+  agora_rtc_engine: ^6.5.4
+
+  # Firebase Cloud Messaging (push notifications) — mirrors the user app.
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+  # Google Analytics for Firebase — usage events + screen views (GA4 dashboard).
+  firebase_analytics: ^11.3.3
+
+  # Local notifications — the backend sends DATA-ONLY FCM messages (no
+  # `notification` block), so the OS won't draw a tray banner; we render it
+  # ourselves. Mirrors the user app.
+  flutter_local_notifications: ^17.2.3
+
+  # WhatsApp-style native incoming-call UI: a high-priority FCM message (even
+  # when the app is fully killed) raises the system call screen (lock-screen,
+  # ringtone, swipe accept/decline). Accept opens the app → joins the session;
+  # decline → reject-session. Android-first.
+  flutter_callkit_incoming: ^2.5.1
+
+  # Renders the AI-generated astrology motif (inline SVG) when previewing the
+  # AI-designed storefront. Vector parser only, safe for LLM-authored SVG.
+  flutter_svg: ^2.0.10+1
+
+  # Renders admin-authored Terms & Privacy HTML in-app (mirrors the user app).
+  webview_flutter: ^4.14.0
+
+  # Open external links (e.g. the DevifAI site from the drawer footer).
+  url_launcher: ^6.2.5
+
+  # Native share sheet — "share the app / refer an astrologer".
+  share_plus: ^10.1.1
+
+  # Google Phone Number Hint — native Play-Services picker that lists the SIM /
+  # Google-account numbers so the user can tap one instead of typing. Mirrors
+  # the user app. Android-only; no-op elsewhere; no runtime permission prompt.
+  smart_auth: ^3.0.1
+
+  # Local prefs (theme + language choice)
+  shared_preferences: ^2.2.2
+
+  # Profile / cover photo picking (UI-only; no upload backend wired yet)
+  image_picker: ^1.0.7
+
+  cupertino_icons: ^1.0.8
+  image_cropper: ^12.2.1
+
+  # Screenshot / screen-recording protection (Android FLAG_SECURE + iOS).
+  # Wired per-screen via SecureScreenMixin (lib/widgets/secure_screen.dart).
+  no_screenshot: ^0.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
