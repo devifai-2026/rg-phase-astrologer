@@ -38,9 +38,15 @@ jobs:
 
       - name: Build release APK (prod backend)
         run: |
-          flutter build apk --release \
-            --dart-define=RG_API_BASE=https://34-93-133-182.sslip.io
           SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          # Bump the version on EVERY push so the installed build is identifiable:
+          #   version name = base + short SHA; build number = GitHub run number.
+          BASE=$(grep '^version:' pubspec.yaml | sed -E 's/version:[[:space:]]*([0-9.]+).*/\1/')
+          flutter build apk --release \
+            --build-name="${BASE}-${SHA}" \
+            --build-number="${{ github.run_number }}" \
+            --dart-define=RG_API_BASE=https://34-93-133-182.sslip.io
+          echo "Built version ${BASE}-${SHA}+${{ github.run_number }}"
           mkdir -p out
           cp build/app/outputs/flutter-apk/app-release.apk "out/rg-astrologer-${SHA}.apk"
           cp build/app/outputs/flutter-apk/app-release.apk "out/rg-astrologer-latest.apk"

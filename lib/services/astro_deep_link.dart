@@ -171,13 +171,20 @@ class AstroDeepLink {
     RtcToken? token;
     try {
       token = await api.accept(sessionId); // backend → 'request-accepted' to the seeker
-      socket.joinSession(sessionId); // astrologer side of markJoined → unblocks 'session-started'
     } catch (_) {
-      // Accept failed (e.g. the ring already expired / was cancelled): fall back
-      // to ringing so the astrologer sees the current state instead of a dead end.
-      _openIncoming(link);
-      return;
+      // accept() may 409 because it was ALREADY accepted — e.g. the CallKit
+      // event handler fired the accept immediately (the reliable path). That's
+      // success, not failure: pull the live session + a fresh token from
+      // /me/active. Only if there's genuinely nothing live do we re-ring.
+      final active = await api.active();
+      if (active != null && (active.session['sessionId'] ?? '').toString() == sessionId) {
+        token = active.token;
+      } else {
+        _openIncoming(link);
+        return;
+      }
     }
+    socket.joinSession(sessionId); // astrologer side of markJoined → unblocks 'session-started'
 
     session.startActive(sessionId: sessionId, kind: kind, alias: alias);
     session.clearIncoming();

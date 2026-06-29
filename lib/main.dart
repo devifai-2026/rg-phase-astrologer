@@ -37,6 +37,9 @@ Future<void> main() async {
     // backend sends DATA-ONLY pushes, so we render the tray banner ourselves.
     await LocalNotifs.init();
     await PushService.instance.init();
+    // Ask for the full-screen-intent grant so the incoming-call screen can pop
+    // OVER the lock screen on Android 14+ (no-op elsewhere).
+    await CallKitService.ensureFullScreenIntentPermission();
     Analytics.instance.setProp('role', 'astrologer'); // GA: segment astrologer app
   } catch (_) {/* push is optional — continue without it */}
 

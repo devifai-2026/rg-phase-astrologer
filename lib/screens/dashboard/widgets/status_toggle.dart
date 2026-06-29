@@ -43,8 +43,12 @@ class StatusToggle extends StatelessWidget {
           decoration: BoxDecoration(color: c.ground2, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.line)),
           child: Row(
             children: [
-              _seg(context, label: Strings.of(context).online, tint: c.green, selected: online, onTap: () => _setOnline(context, true)),
-              _seg(context, label: Strings.of(context).offline, tint: c.muted, selected: !online, onTap: () => _setOnline(context, false)),
+              // While BUSY (in a consultation) the toggle is locked — you can't go
+              // offline on a connected, billing seeker. The badge below explains it.
+              _seg(context, label: Strings.of(context).online, tint: c.green, selected: online,
+                  onTap: busy ? null : () => _setOnline(context, true)),
+              _seg(context, label: Strings.of(context).offline, tint: c.muted, selected: !online,
+                  onTap: busy ? null : () => _setOnline(context, false)),
             ],
           ),
         ),
@@ -86,10 +90,13 @@ class StatusToggle extends StatelessWidget {
     );
   }
 
-  Widget _seg(BuildContext context, {required String label, required Color tint, required bool selected, required VoidCallback onTap}) {
+  Widget _seg(BuildContext context, {required String label, required Color tint, required bool selected, required VoidCallback? onTap}) {
     final c = context.rg;
+    final disabled = onTap == null;
     return Expanded(
-      child: InkWell(
+      child: Opacity(
+        opacity: disabled && !selected ? 0.45 : 1, // dim the unavailable option
+        child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: AnimatedContainer(
@@ -109,6 +116,7 @@ class StatusToggle extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

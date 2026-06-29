@@ -31,6 +31,17 @@ class CallKitService {
   /// UUID-like string; we reuse the sessionId so dismiss() can target it exactly.
   static String _callId(String sessionId) => sessionId;
 
+  /// Ask for the full-screen-intent permission (Android 14+/SDK 34 gates it
+  /// behind a user grant). Without it the incoming-call screen can't pop OVER the
+  /// lock screen — it only shows a heads-up notification. Best-effort + no-throw;
+  /// call once at startup. On older Android / iOS this is a harmless no-op.
+  static Future<void> ensureFullScreenIntentPermission() async {
+    try {
+      final can = await FlutterCallkitIncoming.canUseFullScreenIntent();
+      if (can == false) await FlutterCallkitIncoming.requestFullIntentPermission();
+    } catch (_) {/* not supported on this platform/version */}
+  }
+
   /// Raise the native incoming-call screen for a request payload.
   /// payload keys: sessionId, serviceType (chat/call/video), alias,
   /// ratePerMin, expiresInSec.
