@@ -99,6 +99,41 @@ class CallKitService {
   /// The sessionId the astrologer accepted from the native screen while the app
   /// was not running, awaiting the app to finish bootstrap and act on it.
   static String? pendingAcceptSessionId;
+  static String? pendingAcceptServiceType;
+
+  /// Cold-start safety net for "tap Accept on a fully-killed app". The live
+  /// CallKit `onAccept` event can fire BEFORE Flutter wires [listen] (or the
+  /// routed deep-link can arrive before the navigator exists), so the accept is
+  /// lost and the astrologer lands on the dashboard — the "sometimes works,
+  /// sometimes stuck on homepage" race. On startup we ask the OS which calls it
+  /// still considers ACCEPTED/active and recover the sessionId from there, so the
+  /// accept is honored regardless of event timing. Returns {sessionId, serviceType}
+  /// or null. De-dupes against [pendingAcceptSessionId].
+  static Future<Map<String, String>?> consumePendingAccept() async {
+    // Fast path: the live onAccept event was caught this run.
+    if (pendingAcceptSessionId != null && pendingAcceptSessionId!.isNotEmpty) {
+      final r = {'sessionId': pendingAcceptSessionId!, 'serviceType': pendingAcceptServiceType ?? 'chat'};
+      pendingAcceptSessionId = null;
+      pendingAcceptServiceType = null;
+      return r;
+    }
+    // Cold-start path: query the OS for a call it considers accepted/active.
+    try {
+      final calls = await FlutterCallkitIncoming.activeCalls();
+      if (calls is List && calls.isNotEmpty) {
+        // Most-recent first; take the first with a recoverable sessionId.
+        for (final c in calls) {
+          final body = (c is Map) ? Map<String, dynamic>.from(c) : <String, dynamic>{};
+          final extra = decodeExtra(body['extra']);
+          final sid = (extra['sessionId'] ?? body['id'] ?? '').toString();
+          if (sid.isNotEmpty) {
+            return {'sessionId': sid, 'serviceType': (extra['serviceType'] ?? 'chat').toString()};
+          }
+        }
+      }
+    } catch (_) {/* no active calls / platform not ready */}
+    return null;
+  }
 
   /// Wire the global CallKit event stream once (call from PushService.init).
   /// onAccept / onDecline let the app perform the accept/reject with its DI

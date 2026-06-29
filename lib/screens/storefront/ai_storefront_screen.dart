@@ -7,6 +7,7 @@ import '../../models/ai_models.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/rg_colors.dart';
 import 'store_preview.dart';
+import 'store_preview_screen.dart';
 import 'store_themes.dart';
 
 /// "Let the Stars design your storefront" — AI-generated storefront themes.
@@ -226,21 +227,39 @@ class _DesignCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // FULL live storefront preview (exactly what the seeker sees).
+          // FULL live storefront preview (exactly what the seeker sees). Tap to
+          // open it full-screen.
           Stack(
             children: [
-              StorePreview(
-                theme: theme,
-                name: profile.displayName,
-                bio: profile.bio,
-                avatar: profile.avatar,
-                coverPhoto: profile.coverPhoto,
-                rating: profile.rating,
-                reviewCount: profile.reviewCount,
-                followers: profile.followers,
-                products: products,
-                poojas: poojas,
-                aiHeroImage: heroImage.isNotEmpty ? heroImage : null,
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => StorePreviewScreen(
+                    theme: theme,
+                    name: profile.displayName,
+                    bio: profile.bio,
+                    avatar: profile.avatar,
+                    coverPhoto: profile.coverPhoto,
+                    rating: profile.rating,
+                    reviewCount: profile.reviewCount,
+                    followers: profile.followers,
+                    products: products,
+                    poojas: poojas,
+                    aiHeroImage: heroImage.isNotEmpty ? heroImage : null,
+                  ),
+                )),
+                child: StorePreview(
+                  theme: theme,
+                  name: profile.displayName,
+                  bio: profile.bio,
+                  avatar: profile.avatar,
+                  coverPhoto: profile.coverPhoto,
+                  rating: profile.rating,
+                  reviewCount: profile.reviewCount,
+                  followers: profile.followers,
+                  products: products,
+                  poojas: poojas,
+                  aiHeroImage: heroImage.isNotEmpty ? heroImage : null,
+                ),
               ),
               if (heroPending)
                 Positioned(
@@ -270,7 +289,29 @@ class _DesignCard extends StatelessWidget {
                   style: TextStyle(color: c.muted, fontSize: 12, height: 1.35),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
+              // Explicit full-screen Preview action.
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => StorePreviewScreen(
+                    theme: theme,
+                    name: profile.displayName,
+                    bio: profile.bio,
+                    avatar: profile.avatar,
+                    coverPhoto: profile.coverPhoto,
+                    rating: profile.rating,
+                    reviewCount: profile.reviewCount,
+                    followers: profile.followers,
+                    products: products,
+                    poojas: poojas,
+                    aiHeroImage: heroImage.isNotEmpty ? heroImage : null,
+                  ),
+                )),
+                style: TextButton.styleFrom(foregroundColor: c.muted, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                icon: const Icon(Icons.visibility_outlined, size: 16),
+                label: Text(Strings.of(context).livePreview2, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+              ),
+              const SizedBox(width: 4),
               if (active)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),

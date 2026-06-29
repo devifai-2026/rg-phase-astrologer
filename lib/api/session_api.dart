@@ -147,6 +147,22 @@ class SessionApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  /// The astrologer's currently-LIVE session (status accepted|ongoing) to RESUME
+  /// after an app kill, or null if none. Returns the session map (aliased seeker)
+  /// + a fresh media token. Best-effort; null on any failure.
+  Future<({Map<String, dynamic> session, RtcToken? token})?> active() async {
+    try {
+      final data = await _c.get('/sessions/me/active');
+      if (data == null || data is! Map || data['session'] == null) return null;
+      final session = Map<String, dynamic>.from(data['session'] as Map);
+      final tok = data['token'];
+      final token = tok is Map ? RtcToken.fromJson(Map<String, dynamic>.from(tok)) : null;
+      return (session: session, token: token);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<ChatMsg>> messages(String sessionId, {int page = 1, int limit = 50}) async {
     final data = await _c.get('/sessions/$sessionId/messages', query: {'page': page, 'limit': limit});
     final raw = (data is Map ? (data['items'] as List?) : (data as List?)) ?? [];

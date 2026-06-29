@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/session_api.dart';
+import '../api/socket_service.dart';
 import '../providers/session_provider.dart';
+import 'callkit_service.dart';
 import '../screens/ai/recap_list_screen.dart';
 import '../screens/dashboard/dashboard_shell.dart';
 import '../screens/followers/followers_screen.dart';
 import '../screens/live/go_live_setup_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
+import '../screens/requests/active_session_screen.dart';
+import '../screens/requests/call_screen.dart';
 import '../screens/requests/incoming_ring.dart';
 import '../screens/settings/astro_settings_screen.dart';
 import '../screens/storefront/storefront_screen.dart';
@@ -50,8 +54,17 @@ class AstroDeepLink {
 
     // Incoming consultation request tapped from a full-screen notification →
     // recover the session + ring. Carries ?sessionId=&stype= in the link.
+    // `accepted=1` means the astrologer hit ACCEPT on the native CallKit screen
+    // (often a cold start): don't re-ring — complete the accept and jump into the
+    // session, exactly like the in-app Accept button. This also unblocks the USER
+    // (the backend accept emits 'request-accepted' to them, ending "requesting").
     if (route == 'incoming') {
-      _openIncoming(link);
+      final accepted = Uri.tryParse(link)?.queryParameters['accepted'] == '1';
+      if (accepted) {
+        _acceptIncoming(link);
+      } else {
+        _openIncoming(link);
+      }
       return;
     }
 
@@ -121,6 +134,63 @@ class AstroDeepLink {
     IncomingRing.present(session, {'sessionId': sessionId, 'type': stype, 'alias': alias});
   }
 
+  /// Map the link's stype to the astrologer's ServiceKind.
+  static ServiceKind _kindOf(String? stype) => switch (stype) {
+        'call' => ServiceKind.call,
+        'video' => ServiceKind.video,
+        _ => ServiceKind.chat,
+      };
+
+  /// Complete an accept that originated from the native CallKit screen (the
+  /// astrologer already tapped Accept there). Runs the SAME path as the in-app
+  /// Accept button: REST accept → join the socket room → mark the session active
+  /// → navigate into the session screen. Without this, a CallKit accept on a
+  /// cold start just dropped the astrologer on the dashboard and left the seeker
+  /// stuck on "requesting" (the backend never saw the accept, so 'request-accepted'
+  /// and 'session-started' never fired → both sides hung, timer stayed at 0).
+  static Future<void> _acceptIncoming(String link) async {
+    final uri = Uri.tryParse(link);
+    final sessionId = uri?.queryParameters['sessionId'];
+    final kind = _kindOf(uri?.queryParameters['stype']);
+    final ctx = navigatorKey.currentContext;
+    final nav = navigatorKey.currentState;
+    if (sessionId == null || sessionId.isEmpty || ctx == null || nav == null) return;
+
+    final session = ctx.read<SessionProvider>();
+    final api = ctx.read<SessionApi>();
+    final socket = ctx.read<SocketService>();
+
+    // Pull the alias for the session header (best-effort).
+    var alias = 'Seeker';
+    try {
+      final detail = await api.detail(sessionId);
+      final seeker = detail['seeker'];
+      alias = (seeker is Map ? seeker['alias'] : null)?.toString() ?? detail['seekerAlias']?.toString() ?? 'Seeker';
+    } catch (_) {/* generic alias */}
+
+    RtcToken? token;
+    try {
+      token = await api.accept(sessionId); // backend → 'request-accepted' to the seeker
+      socket.joinSession(sessionId); // astrologer side of markJoined → unblocks 'session-started'
+    } catch (_) {
+      // Accept failed (e.g. the ring already expired / was cancelled): fall back
+      // to ringing so the astrologer sees the current state instead of a dead end.
+      _openIncoming(link);
+      return;
+    }
+
+    session.startActive(sessionId: sessionId, kind: kind, alias: alias);
+    session.clearIncoming();
+    // Poll the authoritative startedAt in case the 'session-started' socket event
+    // is missed on a cold start (covers the timer-stuck-at-0 case).
+    session.syncStartedAt(api);
+
+    final next = kind == ServiceKind.chat
+        ? const ActiveSessionScreen(kind: ServiceKind.chat)
+        : CallScreen(kind: kind, token: token);
+    nav.push(MaterialPageRoute(builder: (_) => next));
+  }
+
   /// Replay a deep-link that arrived before the navigator was ready (cold-start
   /// tap). Call once the dashboard has mounted. No-op if nothing is pending.
   static void flushPending() {
@@ -128,6 +198,52 @@ class AstroDeepLink {
     if (link == null) return;
     _pending = null;
     open(link);
+  }
+
+  /// Cold-start safety net: complete a CallKit accept that the live event race
+  /// may have dropped (the "sometimes stuck on homepage when fully killed" bug).
+  /// Asks the OS which call it considers accepted and finishes the accept.
+  static Future<void> resumePendingAccept() async {
+    final pending = await CallKitService.consumePendingAccept();
+    if (pending == null) return;
+    final sid = pending['sessionId']!;
+    final stype = pending['serviceType'] ?? 'chat';
+    _acceptIncoming('rudraganga://astro/incoming?sessionId=$sid&stype=$stype&accepted=1');
+  }
+
+  /// RESUME an already-active consultation after an app kill. The session is
+  /// still accepted/ongoing server-side (billing the seeker), but the astrologer
+  /// app lost its in-memory session on the kill and stranded them on the
+  /// dashboard. Ask the backend for the live session and re-enter its screen.
+  /// No-op if there's nothing live, or if a ring/accept is already being routed.
+  static Future<void> resumeActiveSession() async {
+    final ctx = navigatorKey.currentContext;
+    final nav = navigatorKey.currentState;
+    if (ctx == null || nav == null) return;
+
+    final session = ctx.read<SessionProvider>();
+    if (session.activeSessionId != null) return; // already in a session
+
+    final api = ctx.read<SessionApi>();
+    final socket = ctx.read<SocketService>();
+    final res = await api.active();
+    if (res == null) return;
+
+    final s = res.session;
+    final sessionId = (s['sessionId'] ?? '').toString();
+    if (sessionId.isEmpty) return;
+    final kind = _kindOf((s['type'] ?? 'chat').toString());
+    final seeker = s['seeker'];
+    final alias = (seeker is Map ? seeker['alias'] : null)?.toString() ?? s['seekerAlias']?.toString() ?? 'Seeker';
+
+    socket.joinSession(sessionId); // rejoin the room → resumes live events + timer
+    session.startActive(sessionId: sessionId, kind: kind, alias: alias);
+    session.syncStartedAt(api); // adopt the authoritative startedAt for the timer
+
+    final next = kind == ServiceKind.chat
+        ? const ActiveSessionScreen(kind: ServiceKind.chat)
+        : CallScreen(kind: kind, token: res.token);
+    nav.push(MaterialPageRoute(builder: (_) => next));
   }
 
   /// Switch to a bottom-nav tab: drop any pushed screens, then select the tab.

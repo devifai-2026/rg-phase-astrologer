@@ -61,6 +61,12 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
       if (!mounted) return;
       _onTabRequest();
       AstroDeepLink.flushPending();
+      // Cold-start safety net: if the astrologer tapped Accept on the native
+      // CallKit screen while the app was fully killed, the live event may have
+      // been lost to a startup race. Recover it from the OS and complete the
+      // accept; if there was no pending accept, fall back to resuming any session
+      // that is STILL live server-side (app killed mid-consultation).
+      AstroDeepLink.resumePendingAccept().then((_) => AstroDeepLink.resumeActiveSession());
       _bindPresenceSync();
     });
   }

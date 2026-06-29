@@ -85,8 +85,10 @@ class PushService {
     CallKitService.listen(
       onAccept: (sessionId, serviceType) {
         // Stash so a cold-start bootstrap can finish the accept once the app +
-        // socket are ready, then route into the incoming/session screen.
+        // socket are ready (consumed by AstroDeepLink.resumePendingAccept), then
+        // also route in directly for the warm-start case.
         CallKitService.pendingAcceptSessionId = sessionId;
+        CallKitService.pendingAcceptServiceType = serviceType;
         CallKitService.routeIntoApp(sessionId, serviceType);
       },
       onDecline: (sessionId) {

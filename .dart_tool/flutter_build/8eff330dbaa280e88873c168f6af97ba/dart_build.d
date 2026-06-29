@@ -1,1 +1,0 @@
- /Users/subhojitdutta/Desktop/d/rg-phase-2/flutter/astrologer/.dart_tool/flutter_build/8eff330dbaa280e88873c168f6af97ba/dart_build_result.json:  /Users/subhojitdutta/Desktop/d/rg-phase-2/flutter/astrologer/.dart_tool/package_config.json /Users/subhojitdutta/Desktop/d/rg-phase-2/flutter/astrologer/pubspec.yaml /opt/homebrew/share/flutter/bin/cache/dart-sdk/version
