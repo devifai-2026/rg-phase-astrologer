@@ -53,13 +53,18 @@ class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateM
     // Record the astrologer's join (both-joined handshake) + join the room.
     if (s.activeSessionId != null) socket.joinSession(s.activeSessionId!);
     _join();
-    // Lightweight repaint each second; also poll the backend for startedAt until
-    // it's known — covers the race where the live session-started event fired
-    // before this screen mounted, which left the astrologer stuck on Connecting.
+    // The clock is driven by the provider's own 1s ticker (it notifies every
+    // second → this screen rebuilds via context.watch), so no per-second
+    // setState here. This poll only closes the race where the live
+    // 'session-started' event fired before this screen mounted (FCM cold start):
+    // re-pull the authoritative server startedAt until known, then stop.
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (!s.sessionStarted) s.syncStartedAt(api);
-      setState(() {});
+      if (!s.sessionStarted) {
+        s.syncStartedAt(api);
+      } else {
+        _ticker?.cancel();
+      }
     });
   }
 

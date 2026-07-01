@@ -14,9 +14,10 @@ import '../ai/profile_optimizer_screen.dart';
 import '../ai/recap_list_screen.dart';
 import '../common/coming_soon_screen.dart';
 import '../followers/followers_screen.dart';
+import '../horoscope/horoscope_screen.dart';
+import '../panchang/panchang_screen.dart';
 import '../live/pre_live_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../requests/incoming_call_screen.dart';
 import '../storefront/storefront_screen.dart';
 import 'widgets/status_toggle.dart';
 
@@ -203,48 +204,29 @@ class _HomeTabState extends State<HomeTab> {
             crossAxisSpacing: 12,
             childAspectRatio: 0.82,
             children: [
-              const _ToolTile(icon: Icons.nightlight_outlined, label: 'Daily\nHoroscope', tintKey: _Tint.gold),
-              const _ToolTile(icon: Icons.bubble_chart_outlined, label: 'Birth\nChart', tintKey: _Tint.violet),
-              _ToolTile(icon: Icons.calendar_month_outlined, label: Strings.of(context).panchang, tintKey: _Tint.blue),
+              _ToolTile(
+                icon: Icons.nightlight_outlined,
+                label: Strings.of(context).dailyHoroscope,
+                tintKey: _Tint.gold,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HoroscopeScreen())),
+              ),
+              _ToolTile(icon: Icons.bubble_chart_outlined, label: Strings.of(context).birthChart, tintKey: _Tint.violet),
+              _ToolTile(
+                icon: Icons.calendar_month_outlined,
+                label: Strings.of(context).panchang,
+                tintKey: _Tint.blue,
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PanchangScreen())),
+              ),
               _ToolTile(icon: Icons.grid_view_rounded, label: Strings.of(context).kundli, tintKey: _Tint.red),
               _ToolTile(icon: Icons.diversity_3_outlined, label: Strings.of(context).matrimony, tintKey: _Tint.green),
-              const _ToolTile(icon: Icons.menu_book_outlined, label: 'Brihat\nKundli', tintKey: _Tint.gold),
-              const _ToolTile(icon: Icons.favorite_border, label: 'Kundli\nMatching', tintKey: _Tint.red),
-              const _ToolTile(icon: Icons.auto_awesome, label: 'Kundli\nAI+', tintKey: _Tint.violet),
+              _ToolTile(icon: Icons.menu_book_outlined, label: Strings.of(context).brihatKundli, tintKey: _Tint.gold),
+              _ToolTile(icon: Icons.favorite_border, label: Strings.of(context).kundliMatching, tintKey: _Tint.red),
+              _ToolTile(icon: Icons.auto_awesome, label: Strings.of(context).kundliAiPlus, tintKey: _Tint.violet),
             ],
-          ),
-          const SizedBox(height: 20),
-
-          // ── Demo: simulate incoming request ──
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: c.ground2, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(Icons.bolt, size: 18, color: c.gold),
-                const SizedBox(width: 8),
-                Text(Strings.of(context).simulateAnIncomingRequest, style: TextStyle(color: c.ink, fontWeight: FontWeight.w700, fontSize: 14)),
-              ]),
-              const SizedBox(height: 4),
-              Text(Strings.of(context).demoOnlyPreviewTheRingingCall, style: TextStyle(color: c.muted, fontSize: 12)),
-              const SizedBox(height: 12),
-              Row(children: [
-                _SimBtn(label: Strings.of(context).call, icon: Icons.call, tint: c.green, onTap: () => _sim(context, ServiceKind.call)),
-                const SizedBox(width: 10),
-                _SimBtn(label: Strings.of(context).chat, icon: Icons.chat_bubble, tint: c.blue, onTap: () => _sim(context, ServiceKind.chat)),
-                const SizedBox(width: 10),
-                _SimBtn(label: Strings.of(context).video, icon: Icons.videocam, tint: c.violet, onTap: () => _sim(context, ServiceKind.video)),
-              ]),
-            ]),
           ),
         ],
       ),
     );
-  }
-
-  void _sim(BuildContext context, ServiceKind kind) {
-    context.read<SessionProvider>().simulateIncoming(kind);
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => IncomingCallScreen(kind: kind)));
   }
 
   ImageProvider? _avatarImg(Astrologer p) {
@@ -620,7 +602,8 @@ class _ToolTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final _Tint tintKey;
-  const _ToolTile({required this.icon, required this.label, required this.tintKey});
+  final VoidCallback? onTap; // overrides the default Coming-Soon navigation
+  const _ToolTile({required this.icon, required this.label, required this.tintKey, this.onTap});
 
   Color _tint(BuildContext context) {
     final c = context.rg;
@@ -639,9 +622,10 @@ class _ToolTile extends StatelessWidget {
     final tint = _tint(context);
     return InkWell(
       borderRadius: BorderRadius.circular(14),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ComingSoonScreen(title: label.replaceAll('\n', ' '), icon: icon)),
-      ),
+      onTap: onTap ??
+          () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => ComingSoonScreen(title: label.replaceAll('\n', ' '), icon: icon)),
+              ),
       child: Column(
         children: [
           Container(
@@ -664,31 +648,3 @@ class _ToolTile extends StatelessWidget {
   }
 }
 
-class _SimBtn extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color tint;
-  final VoidCallback onTap;
-  const _SimBtn({required this.label, required this.icon, required this.tint, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: tint.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            child: Column(children: [
-              Icon(icon, color: tint, size: 20),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: tint, fontWeight: FontWeight.w700, fontSize: 12)),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-}

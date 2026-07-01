@@ -6,6 +6,7 @@ import '../../api/session_api.dart';
 import '../../api/socket_service.dart';
 import '../../i18n/strings.dart';
 import '../../providers/session_provider.dart';
+import '../../services/callkit_service.dart';
 import '../../theme/rg_colors.dart';
 import 'active_session_screen.dart';
 import 'call_screen.dart';
@@ -70,6 +71,10 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> with SingleTick
     final alias = session.incomingUser;
     if (sessionId == null) { _dismiss(); return; }
 
+    // Tear down the parallel native CallKit screen (raised by the FCM push for
+    // the same request) up front, so it can't re-surface over the live session.
+    unawaited(CallKitService.dismiss(sessionId));
+
     RtcToken? token;
     try {
       // REST accept returns the Agora token for media; also join the socket room.
@@ -91,15 +96,25 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> with SingleTick
     Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => next));
   }
 
-  Future<void> _decline() async {
+  void _decline() {
     if (_busy) return;
-    setState(() => _busy = true);
+    _busy = true;
     _timer?.cancel();
     final session = context.read<SessionProvider>();
     final api = context.read<SessionApi>();
     final sessionId = session.incomingSessionId;
+    // Optimistic: switch the screen NOW, don't wait on the network. Firing the
+    // reject in the background (not awaited) means the ring dismisses on the
+    // first tap instead of after a full round-trip. The backend socket/timeout
+    // reconciles state, so a slow or failed POST never blocks the UI.
     if (sessionId != null) {
-      try { await api.reject(sessionId); } catch (_) {/* socket/timeout will reconcile */}
+      unawaited(api.reject(sessionId).catchError((_) {/* socket/timeout will reconcile */}));
+      // The SAME request also arrived as an FCM push that raised the native
+      // CallKit screen. Tear it down too, or it re-surfaces asking accept/reject
+      // again after we've already declined here. (Socket cancel/expire paths in
+      // main.dart dismiss CallKit the same way; this covers the astrologer's own
+      // in-app decline.)
+      unawaited(CallKitService.dismiss(sessionId));
     }
     _dismiss();
   }
@@ -170,8 +185,8 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> with SingleTick
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _ActionButton(icon: Icons.call_end, color: c.red, label: Strings.of(context).decline, onTap: () => _decline()),
-                      _ActionButton(icon: Icons.check, color: _tint, label: Strings.of(context).accept, onTap: _accept),
+                      _ActionButton(icon: Icons.call_end, color: c.red, label: Strings.of(context).decline, enabled: !_busy, onTap: _decline),
+                      _ActionButton(icon: Icons.check, color: _tint, label: Strings.of(context).accept, enabled: !_busy, onTap: _accept),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -185,26 +200,47 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> with SingleTick
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _ActionButton extends StatefulWidget {
   final IconData icon;
   final Color color;
   final String label;
+  final bool enabled;
   final VoidCallback onTap;
-  const _ActionButton({required this.icon, required this.color, required this.label, required this.onTap});
+  const _ActionButton({required this.icon, required this.color, required this.label, this.enabled = true, required this.onTap});
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  bool _down = false;
+
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
+    final active = widget.enabled;
     return Column(mainAxisSize: MainAxisSize.min, children: [
       GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 72, width: 72,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 18, spreadRadius: 2)]),
-          child: Icon(icon, color: Colors.white, size: 32),
+        // Fire on tap-down (not up) so the very first touch registers instantly
+        // — no perceptible delay before the screen switches.
+        onTapDown: active ? (_) { setState(() => _down = true); widget.onTap(); } : null,
+        onTapCancel: () => setState(() => _down = false),
+        onTapUp: (_) => setState(() => _down = false),
+        child: AnimatedScale(
+          scale: _down ? 0.9 : 1.0,
+          duration: const Duration(milliseconds: 90),
+          child: AnimatedOpacity(
+            opacity: active ? 1.0 : 0.5,
+            duration: const Duration(milliseconds: 120),
+            child: Container(
+              height: 72, width: 72,
+              decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle, boxShadow: [BoxShadow(color: widget.color.withValues(alpha: 0.4), blurRadius: 18, spreadRadius: 2)]),
+              child: Icon(widget.icon, color: Colors.white, size: 32),
+            ),
+          ),
         ),
       ),
       const SizedBox(height: 10),
-      Text(label, style: TextStyle(color: c.ink, fontWeight: FontWeight.w700)),
+      Text(widget.label, style: TextStyle(color: c.ink, fontWeight: FontWeight.w700)),
     ]);
   }
 }

@@ -130,6 +130,68 @@ const kStoreThemes = <StoreTheme>[
     motif: Icons.workspace_premium,
     cta: 'Book',
   ),
+  // ── AI-styled premium cosmic presets (same lush gradient look as the AI
+  //    designer output) ──
+  // Aurora: teal–emerald nebula with moonstone silver glow.
+  StoreTheme(
+    key: 'aurora',
+    name: 'Aurora',
+    tagline: 'Emerald nebula · moonstone',
+    bg: [Color(0xFF06231F), Color(0xFF03110E)],
+    accent: Color(0xFF3FD8B4),
+    accent2: Color(0xFFBFE9D8),
+    card: Color(0xFF0C3229),
+    cardBorder: Color(0x333FD8B4),
+    text: Color(0xFFE9FBF5),
+    subtext: Color(0xFFA9CFC4),
+    motif: Icons.auto_awesome,
+    cta: 'Discover',
+  ),
+  // Twilight: indigo → rose dusk, iridescent y2k-mystic vibe.
+  StoreTheme(
+    key: 'twilight',
+    name: 'Twilight',
+    tagline: 'Indigo dusk · rose glow',
+    bg: [Color(0xFF241436), Color(0xFF0E0718)],
+    accent: Color(0xFFC77DFF),
+    accent2: Color(0xFFFF9EC4),
+    card: Color(0xFF2E1B47),
+    cardBorder: Color(0x33C77DFF),
+    text: Color(0xFFF4EAFB),
+    subtext: Color(0xFFC3B0DD),
+    motif: Icons.nightlight_round,
+    cta: 'Begin',
+  ),
+  // Sapphire: deep ocean blue + cyan starlight.
+  StoreTheme(
+    key: 'sapphire',
+    name: 'Sapphire',
+    tagline: 'Deep blue · cyan stars',
+    bg: [Color(0xFF0A1B3D), Color(0xFF040B1C)],
+    accent: Color(0xFF5AA9FF),
+    accent2: Color(0xFF8FE0FF),
+    card: Color(0xFF122A52),
+    cardBorder: Color(0x335AA9FF),
+    text: Color(0xFFE8F1FF),
+    subtext: Color(0xFFA6BEDD),
+    motif: Icons.blur_on,
+    cta: 'Consult',
+  ),
+  // Lotus: rose-gold + blush, soft sacred elegance.
+  StoreTheme(
+    key: 'lotus',
+    name: 'Lotus',
+    tagline: 'Rose gold · blush petals',
+    bg: [Color(0xFF2E1220), Color(0xFF150710)],
+    accent: Color(0xFFF2B8C6),
+    accent2: Color(0xFFE8C07D),
+    card: Color(0xFF3A1A2A),
+    cardBorder: Color(0x33F2B8C6),
+    text: Color(0xFFFBECF1),
+    subtext: Color(0xFFD6B3C0),
+    motif: Icons.local_florist,
+    cta: 'Bless',
+  ),
 ];
 
 StoreTheme storeThemeByKey(String? key) =>

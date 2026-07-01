@@ -12,6 +12,7 @@ import 'add_product_screen.dart';
 import 'ai_storefront_screen.dart';
 import 'store_orders_screen.dart';
 import 'store_preview.dart';
+import 'store_preview_screen.dart';
 import 'store_themes.dart';
 
 /// Astrologer storefront hub with three tabs:
@@ -208,6 +209,26 @@ class _StoreTab extends StatelessWidget {
   final List<PoojaOffering> poojas;
   const _StoreTab({required this.theme, required this.saving, required this.onPick, required this.products, required this.poojas});
 
+  /// Open a full-screen preview of [t] (exactly the seeker view) without
+  /// selecting/saving it — lets the astrologer try any theme before committing.
+  void _previewTheme(BuildContext context, StoreTheme t, List<StoreProduct> products, List<PoojaOffering> poojas) {
+    final profile = context.read<SessionProvider>().profile;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => StorePreviewScreen(
+        theme: t,
+        name: profile.displayName,
+        bio: profile.bio,
+        avatar: profile.avatar,
+        coverPhoto: profile.coverPhoto,
+        rating: profile.rating,
+        reviewCount: profile.reviewCount,
+        followers: profile.followers,
+        products: products,
+        poojas: poojas,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
@@ -221,7 +242,7 @@ class _StoreTab extends StatelessWidget {
         Text(Strings.of(context).pickATemplateItSavesTo, style: TextStyle(color: c.muted, fontSize: 12.5)),
         const SizedBox(height: 12),
         SizedBox(
-          height: 96,
+          height: 132,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: kStoreThemes.length,
@@ -229,28 +250,53 @@ class _StoreTab extends StatelessWidget {
             itemBuilder: (_, i) {
               final t = kStoreThemes[i];
               final on = t.key == theme;
-              return InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: saving ? null : () => onPick(t.key),
-                child: Container(
-                  width: 130,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: t.bg, begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: on ? t.accent : c.line, width: on ? 2 : 1),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Icon(t.motif, color: t.accent, size: 16),
-                      const Spacer(),
-                      if (on) Icon(Icons.check_circle, color: t.accent, size: 16),
-                    ]),
-                    const Spacer(),
-                    Text(t.name, style: TextStyle(color: t.text, fontWeight: FontWeight.w800, fontSize: 14)),
-                    const SizedBox(height: 2),
-                    Text(t.tagline, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subtext, fontSize: 9.5, height: 1.2)),
-                  ]),
+              return SizedBox(
+                width: 130,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: saving ? null : () => onPick(t.key),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: t.bg, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: on ? t.accent : c.line, width: on ? 2 : 1),
+                          ),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Icon(t.motif, color: t.accent, size: 16),
+                              const Spacer(),
+                              if (on) Icon(Icons.check_circle, color: t.accent, size: 16),
+                            ]),
+                            const Spacer(),
+                            Text(t.name, style: TextStyle(color: t.text, fontWeight: FontWeight.w800, fontSize: 14)),
+                            const SizedBox(height: 2),
+                            Text(t.tagline, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: t.subtext, fontSize: 9.5, height: 1.2)),
+                          ]),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Preview this theme full-screen WITHOUT selecting/saving it.
+                    SizedBox(
+                      height: 28,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _previewTheme(context, t, products, poojas),
+                        icon: const Icon(Icons.visibility_outlined, size: 14),
+                        label: const Text('Preview', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: c.ink,
+                          side: BorderSide(color: c.line),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               );
             },

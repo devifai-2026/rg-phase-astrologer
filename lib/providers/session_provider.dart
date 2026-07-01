@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/ai_models.dart';
@@ -355,11 +357,33 @@ class SessionProvider extends ChangeNotifier {
   DateTime? sessionStartedAt;
   bool get sessionStarted => sessionStartedAt != null;
 
-  /// Elapsed whole seconds since the server-stamped start (0 before both join).
-  int get elapsedSec {
-    if (sessionStartedAt == null) return 0;
+  // Elapsed whole seconds since the server-stamped start. Driven by a 1-second
+  // ticker in THIS provider (not by each screen's own Timer) so EVERY surface
+  // that watches the provider — the active session screen AND the minimized
+  // "Resume" pill on the dashboard — advances smoothly and stays in lock-step
+  // with the user app (both compute from the same server startedAt). 0 before
+  // both parties join. Mirrors the user app's model exactly.
+  Timer? _ticker;
+  int _elapsedSec = 0;
+  int get elapsedSec => _elapsedSec;
+
+  void _startTicker() {
+    sessionStartedAt ??= DateTime.now();
+    _ticker?.cancel();
+    _tick();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+  }
+
+  void _tick() {
+    if (sessionStartedAt == null) return;
     final s = DateTime.now().difference(sessionStartedAt!).inSeconds;
-    return s < 0 ? 0 : s;
+    _elapsedSec = s < 0 ? 0 : s;
+    notifyListeners();
+  }
+
+  void _stopTicker() {
+    _ticker?.cancel();
+    _ticker = null;
   }
 
   // Astrologer's NET earning per minute for the active session (rate − platform
@@ -379,6 +403,8 @@ class SessionProvider extends ChangeNotifier {
     activeAlias = alias;
     activePerMin = 0; // set when 'session-started' arrives
     liveMessages.clear();
+    _stopTicker();
+    _elapsedSec = 0;
     sessionStartedAt = null; // timer waits for session-started
     endSummary = null; // clear any prior session's summary so the new screen
                        // doesn't immediately auto-end on a stale endSummary
@@ -396,15 +422,19 @@ class SessionProvider extends ChangeNotifier {
     // Astrologer's net per-minute earning for this session (from the server).
     final perMin = (d['astrologerPerMin'] as num?)?.toInt();
     if (perMin != null && perMin > 0) activePerMin = perMin;
+    _startTicker(); // clock ticks from the server startedAt (identical to user)
     notifyListeners();
   }
 
-  /// Re-pull the authoritative startedAt from the backend (covers the race where
-  /// the live session-started event arrived before this screen subscribed).
-  /// [api] is the astrologer SessionApi; safe to call repeatedly.
+  /// Re-pull the authoritative startedAt from the backend. Covers the race where
+  /// the live 'session-started' event fired before this client subscribed (FCM
+  /// cold-start tap), AND re-anchors the clock to server truth whenever a
+  /// (possibly minimized/backgrounded) session is reopened — so the astrologer's
+  /// timer always matches the user app exactly, no drift. Safe to call repeatedly.
+  /// [api] is the astrologer SessionApi.
   Future<void> syncStartedAt(dynamic api) async {
     final id = activeSessionId;
-    if (id == null || sessionStartedAt != null) return;
+    if (id == null) return;
     try {
       final detail = await api.detail(id);
       // Fallback for the per-min earning if the live event was missed: derive
@@ -417,7 +447,10 @@ class SessionProvider extends ChangeNotifier {
       }
       final started = detail['startedAt']?.toString();
       if (started != null && started.isNotEmpty) {
+        // Adopt the SERVER start time (authoritative) even if we had a local
+        // one — this corrects any drift from a DateTime.now() fallback.
         sessionStartedAt = DateTime.tryParse(started)?.toLocal();
+        if (_ticker == null) _startTicker(); else _tick();
         notifyListeners();
       }
     } catch (_) {/* keep waiting for the live event */}
@@ -440,6 +473,8 @@ class SessionProvider extends ChangeNotifier {
     endSummary = Map<String, dynamic>.from(d);
     activeSessionId = null;
     activeKind = null;
+    _stopTicker();
+    _elapsedSec = 0;
     sessionStartedAt = null;
     liveMessages.clear();
     _inSession = false;
@@ -451,6 +486,8 @@ class SessionProvider extends ChangeNotifier {
   void endActive() {
     activeSessionId = null;
     activeKind = null;
+    _stopTicker();
+    _elapsedSec = 0;
     sessionStartedAt = null;
     liveMessages.clear();
     _inSession = false;

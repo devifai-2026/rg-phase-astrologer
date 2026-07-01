@@ -134,7 +134,9 @@ class _ProfileOptimizerScreenState extends State<ProfileOptimizerScreen> with Si
         Text(Strings.of(context).coachingSuggestionsBasedOnYourProfile,
             style: TextStyle(color: c.muted, fontSize: 12.5, height: 1.35)),
         const SizedBox(height: 12),
-        ...report.suggestions.map((s) => _SuggestionCard(s: s)),
+        // Group suggestions by area so the SAME area (e.g. "Bio") shows as ONE
+        // card with its points listed underneath, instead of duplicate cards.
+        ..._groupByArea(report.suggestions).map((g) => _SuggestionGroupCard(group: g)),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           icon: const Icon(Icons.refresh, size: 18),
@@ -292,12 +294,38 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
-/// A read-only coaching suggestion: what to improve + the recommended fix. No
-/// "apply" — these are advice (e.g. "ask satisfied clients for reviews", "how to
-/// talk in consultations"), not toggleable profile fields.
-class _SuggestionCard extends StatelessWidget {
-  final OptimizerSuggestion s;
-  const _SuggestionCard({required this.s});
+/// One area's worth of suggestions, merged. Keeps every point but shares a
+/// single header/icon and shows the highest impact across the grouped points.
+class _SuggestionGroup {
+  final String area;
+  final IconData icon;
+  final int impact; // max impact across the group's points
+  final List<OptimizerSuggestion> points;
+  _SuggestionGroup({required this.area, required this.icon, required this.impact, required this.points});
+}
+
+/// Group suggestions by `area`, preserving order (first-seen area first), so the
+/// same area is one card. Within a group, points keep their given order.
+List<_SuggestionGroup> _groupByArea(List<OptimizerSuggestion> suggestions) {
+  final order = <String>[];
+  final byArea = <String, List<OptimizerSuggestion>>{};
+  for (final s in suggestions) {
+    if (!byArea.containsKey(s.area)) { order.add(s.area); byArea[s.area] = []; }
+    byArea[s.area]!.add(s);
+  }
+  return order.map((area) {
+    final pts = byArea[area]!;
+    final maxImpact = pts.fold<int>(0, (m, p) => p.impact > m ? p.impact : m);
+    return _SuggestionGroup(area: area, icon: pts.first.icon, impact: maxImpact, points: pts);
+  }).toList();
+}
+
+/// A read-only coaching card for ONE area. If the area has several points they
+/// are listed underneath a single header (no duplicate area cards). Each point
+/// shows its issue + the recommended fix.
+class _SuggestionGroupCard extends StatelessWidget {
+  final _SuggestionGroup group;
+  const _SuggestionGroupCard({required this.group});
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
@@ -314,32 +342,38 @@ class _SuggestionCard extends StatelessWidget {
           Container(
             height: 38, width: 38,
             decoration: BoxDecoration(color: c.violet.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
-            child: Icon(s.icon, color: c.violet, size: 19),
+            child: Icon(group.icon, color: c.violet, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(s.area, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 14)),
+              Text(group.area, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 14)),
               Row(children: [
-                ...List.generate(5, (i) => Icon(i < s.impact ? Icons.bolt : Icons.bolt_outlined, size: 12, color: c.gold)),
+                ...List.generate(5, (i) => Icon(i < group.impact ? Icons.bolt : Icons.bolt_outlined, size: 12, color: c.gold)),
                 const SizedBox(width: 6),
                 Text(Strings.of(context).impact, style: TextStyle(color: c.muted, fontSize: 10.5)),
               ]),
             ]),
           ),
         ]),
-        const SizedBox(height: 10),
-        Text(s.issue, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(color: c.ground, borderRadius: BorderRadius.circular(10), border: Border.all(color: c.line)),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(Icons.lightbulb_outline, size: 15, color: c.gold),
-            const SizedBox(width: 8),
-            Expanded(child: Text(s.fix, style: TextStyle(color: c.ink, fontSize: 13, height: 1.4))),
-          ]),
-        ),
+        // Each point under this area: issue + its fix, separated by a divider.
+        for (var i = 0; i < group.points.length; i++) ...[
+          if (i == 0) const SizedBox(height: 10) else Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, color: c.line),
+          ),
+          Text(group.points[i].issue, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: c.ground, borderRadius: BorderRadius.circular(10), border: Border.all(color: c.line)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.lightbulb_outline, size: 15, color: c.gold),
+              const SizedBox(width: 8),
+              Expanded(child: Text(group.points[i].fix, style: TextStyle(color: c.ink, fontSize: 13, height: 1.4))),
+            ]),
+          ),
+        ],
       ]),
     );
   }

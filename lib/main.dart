@@ -10,6 +10,8 @@ import 'api/notification_api.dart';
 import 'api/session_api.dart';
 import 'api/live_api.dart';
 import 'api/service_feedback_api.dart';
+import 'api/horoscope_api.dart';
+import 'api/panchang_api.dart';
 import 'api/socket_service.dart';
 import 'api/token_store.dart';
 import 'firebase_options.dart';
@@ -65,6 +67,8 @@ Future<void> main() async {
   final sessionApi = SessionApi(client);
   final liveApi = LiveApi(client);
   final serviceFeedbackApi = ServiceFeedbackApi(client);
+  final horoscopeApi = HoroscopeApi(client);
+  final panchangApi = PanchangApi(client);
   // Give push the authenticated APIs: token registration + tap attribution, and
   // SessionApi so the native call screen can reject a request over REST.
   PushService.instance.attach(api, sessionApi: sessionApi);
@@ -136,7 +140,7 @@ Future<void> main() async {
     notifications.load(); // fire-and-forget; primes the bell badge + inbox
   }
 
-  runApp(RgAstrologerApp(settings: settings, api: api, socket: socket, notifications: notifications, session: session, sessionApi: sessionApi, liveApi: liveApi, serviceFeedbackApi: serviceFeedbackApi));
+  runApp(RgAstrologerApp(settings: settings, api: api, socket: socket, notifications: notifications, session: session, sessionApi: sessionApi, liveApi: liveApi, serviceFeedbackApi: serviceFeedbackApi, horoscopeApi: horoscopeApi, panchangApi: panchangApi));
 }
 
 class RgAstrologerApp extends StatelessWidget {
@@ -148,7 +152,9 @@ class RgAstrologerApp extends StatelessWidget {
   final SessionApi sessionApi;
   final LiveApi liveApi;
   final ServiceFeedbackApi serviceFeedbackApi;
-  const RgAstrologerApp({super.key, required this.settings, required this.api, required this.socket, required this.notifications, required this.session, required this.sessionApi, required this.liveApi, required this.serviceFeedbackApi});
+  final HoroscopeApi horoscopeApi;
+  final PanchangApi panchangApi;
+  const RgAstrologerApp({super.key, required this.settings, required this.api, required this.socket, required this.notifications, required this.session, required this.sessionApi, required this.liveApi, required this.serviceFeedbackApi, required this.horoscopeApi, required this.panchangApi});
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +165,8 @@ class RgAstrologerApp extends StatelessWidget {
         Provider<SessionApi>.value(value: sessionApi),
         Provider<LiveApi>.value(value: liveApi),
         Provider<ServiceFeedbackApi>.value(value: serviceFeedbackApi),
+        Provider<HoroscopeApi>.value(value: horoscopeApi),
+        Provider<PanchangApi>.value(value: panchangApi),
         ChangeNotifierProvider<SocketService>.value(value: socket),
         ChangeNotifierProvider<NotificationsProvider>.value(value: notifications),
         ChangeNotifierProvider.value(value: session),

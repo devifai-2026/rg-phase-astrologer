@@ -8,6 +8,7 @@ import 'callkit_service.dart';
 import 'delivery_ack.dart';
 import 'device_info.dart';
 import 'local_notifs.dart';
+import 'presence_ack.dart';
 
 /// Background/terminated-state handler. Must be a top-level function (FCM spawns
 /// a separate isolate that can't reach the app's DI graph). Broadcasts are sent
@@ -18,6 +19,16 @@ import 'local_notifs.dart';
 @pragma('vm:entry-point')
 Future<void> _onBackgroundMessage(RemoteMessage message) async {
   final data = message.data;
+
+  // Silent reachability probe: the backend pinged us to check the device still
+  // has internet. ACK it (proves connectivity → stays online) and stop — no
+  // notification, no CallKit. Reaching this handler AT ALL means FCM got through,
+  // and the ACK confirms our uplink works too.
+  if ((data['type'] ?? '').toString() == 'presence_ping') {
+    await PresenceAck.send();
+    return;
+  }
+
   // Confirm receipt for delivery analytics (best-effort; reads token from
   // secure storage which is shared with this isolate).
   await DeliveryAck.send(data['broadcastId']?.toString());
@@ -116,6 +127,13 @@ class PushService {
     // local-notifications channel. Also ACK delivery — the message has
     // demonstrably arrived on this device.
     FirebaseMessaging.onMessage.listen((msg) {
+      // Silent reachability probe (foreground): ACK connectivity, draw nothing.
+      // In practice the socket heartbeat already keeps a foreground app fresh, so
+      // this is just belt-and-suspenders for the probe/heartbeat race window.
+      if ((msg.data['type'] ?? '').toString() == 'presence_ping') {
+        PresenceAck.send();
+        return;
+      }
       _recordDelivered(msg.data['broadcastId']?.toString());
       // Incoming request in the foreground: the socket usually rings the in-app
       // screen already, but if the socket is momentarily down the push still

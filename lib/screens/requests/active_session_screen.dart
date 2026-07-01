@@ -50,13 +50,19 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
     });
     // React to a session-ended pushed by the server (either side ended).
     context.read<SessionProvider>().addListener(_onSession);
-    // Tick + poll startedAt until known (covers the race where session-started
-    // fired before this screen subscribed).
+    // The visible clock is now driven by the provider's own 1s ticker (it
+    // notifies every second → this screen rebuilds via context.watch), so we no
+    // longer setState() here. This poll only closes the FCM cold-start race:
+    // keep re-pulling the authoritative server startedAt until it's known, then
+    // stop. Once known, the provider ticker keeps both apps in lock-step.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       final s = context.read<SessionProvider>();
-      if (!s.sessionStarted) s.syncStartedAt(context.read<SessionApi>());
-      setState(() {});
+      if (!s.sessionStarted) {
+        s.syncStartedAt(context.read<SessionApi>());
+      } else {
+        _timer?.cancel(); // start time locked in — nothing left to poll
+      }
     });
   }
 

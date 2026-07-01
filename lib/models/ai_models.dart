@@ -37,6 +37,12 @@ class OptimizerSuggestion {
         return Icons.workspace_premium_outlined;
       case 'Availability':
         return Icons.schedule;
+      case 'Responsiveness':
+        return Icons.bolt_outlined;
+      case 'Ratings':
+        return Icons.star_outline;
+      case 'Storefront':
+        return Icons.storefront_outlined;
       default:
         return Icons.auto_fix_high;
     }
