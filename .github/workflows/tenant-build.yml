@@ -12,6 +12,7 @@ on:
       tenant:          { description: tenant slug, required: true }
       artifact:        { description: aab or apk, required: true, default: aab }
       application_id:  { description: Android applicationId, required: true }
+      app_label:       { description: home-screen + notification app name, required: false, default: '' }
       version_name:    { description: version name, required: true, default: '1.0.0' }
       version_code:    { description: version code (int), required: true, default: '1' }
       api_base:        { description: backend API base URL, required: true }
@@ -30,11 +31,61 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
+      # Fetch the google-services.json that matches THIS tenant's applicationId
+      # from the shared Firebase project via the Management API. The backend
+      # registers the app at tenant-create time; here we pull its config so the
+      # `processReleaseGoogleServices` Gradle task finds a matching client.
+      # Falls back to the committed file when FIREBASE_SA is not set.
+      - name: Fetch tenant google-services.json
+        if: ${{ secrets.FIREBASE_SA != '' }}
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          APPLICATION_ID: ${{ inputs.application_id }}
+        run: |
+          node - <<'EOF'
+          const crypto = require('crypto'), https = require('https');
+          const k = JSON.parse(process.env.FIREBASE_SA);
+          const pkg = process.env.APPLICATION_ID;
+          const now = Math.floor(Date.now() / 1000);
+          const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+          const jwt = () => {
+            const h = b64({ alg: 'RS256', typ: 'JWT' });
+            const c = b64({ iss: k.client_email, scope: 'https://www.googleapis.com/auth/cloud-platform', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 });
+            const sig = crypto.createSign('RSA-SHA256').update(h + '.' + c).sign(k.private_key, 'base64url');
+            return `${h}.${c}.${sig}`;
+          };
+          const req = (opts, body) => new Promise((res, rej) => {
+            const r = https.request(opts, (x) => { let d = ''; x.on('data', (b) => d += b); x.on('end', () => res({ status: x.statusCode, body: d })); });
+            r.on('error', rej); if (body) r.write(body); r.end();
+          });
+          (async () => {
+            const tok = await req({ method: 'POST', host: 'oauth2.googleapis.com', path: '/token', headers: { 'content-type': 'application/x-www-form-urlencoded' } },
+              'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + jwt());
+            const access = JSON.parse(tok.body).access_token;
+            if (!access) { console.error('no access token'); process.exit(1); }
+            const auth = { host: 'firebase.googleapis.com', headers: { Authorization: 'Bearer ' + access } };
+            const proj = k.project_id;
+            let apps = [], pageToken = '';
+            do {
+              const p = await req({ ...auth, method: 'GET', path: `/v1beta1/projects/${proj}/androidApps?pageSize=100` + (pageToken ? `&pageToken=${pageToken}` : '') });
+              const j = JSON.parse(p.body); apps = apps.concat(j.apps || []); pageToken = j.nextPageToken || '';
+            } while (pageToken);
+            const app = apps.find((a) => a.packageName === pkg);
+            if (!app) { console.error(`applicationId ${pkg} is NOT registered in Firebase project ${proj}. Register it (backend does this at tenant-create) before building.`); process.exit(1); }
+            const cfg = await req({ ...auth, method: 'GET', path: `/v1beta1/${app.name}/config` });
+            const contents = Buffer.from(JSON.parse(cfg.body).configFileContents, 'base64').toString('utf8');
+            require('fs').writeFileSync('android/app/google-services.json', contents);
+            console.log(`Wrote google-services.json for ${pkg} (project ${proj}, ${contents.length} bytes)`);
+          })().catch((e) => { console.error(e); process.exit(1); });
+          EOF
+
       - name: Build ${{ inputs.artifact }} for tenant ${{ inputs.tenant }}
         id: build
         run: |
           set -e
           DEEPLINK="${{ inputs.tenant }}"
+          APP_LABEL="${{ inputs.app_label }}"
+          [ -z "$APP_LABEL" ] && APP_LABEL="${{ inputs.tenant }}"   # fall back to slug
           COMMON=( --release \
             --build-name="${{ inputs.version_name }}" \
             --build-number="${{ inputs.version_code }}" \
@@ -42,7 +93,7 @@ jobs:
             --dart-define=TENANT="${{ inputs.tenant }}" \
             --dart-define=DEEPLINK_SCHEME="$DEEPLINK" \
             -Ptenant.applicationId="${{ inputs.application_id }}" \
-            -Ptenant.appLabel="${{ inputs.tenant }} Astrologer" \
+            -Ptenant.appLabel="$APP_LABEL Astrologer" \
             -Ptenant.deepLinkScheme="$DEEPLINK" )
           if [ "${{ inputs.artifact }}" = "apk" ]; then
             flutter build apk "${COMMON[@]}"
