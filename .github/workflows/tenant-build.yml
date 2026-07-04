@@ -21,6 +21,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Job-level so step-level `if:` can read env.FIREBASE_SA (the `secrets`
+      # context is NOT allowed in a step `if:` expression).
+      FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -37,9 +41,8 @@ jobs:
       # `processReleaseGoogleServices` Gradle task finds a matching client.
       # Falls back to the committed file when FIREBASE_SA is not set.
       - name: Fetch tenant google-services.json
-        if: ${{ secrets.FIREBASE_SA != '' }}
+        if: ${{ env.FIREBASE_SA != '' }}
         env:
-          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           APPLICATION_ID: ${{ inputs.application_id }}
         run: |
           node - <<'EOF'
