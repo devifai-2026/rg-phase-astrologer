@@ -1,0 +1,1 @@
+keep this folder tracked so Flutter's declared assets/images/ path exists on CI checkout
