@@ -10,8 +10,10 @@ class LocalNotifs {
   static bool _ready = false;
   static final _rand = Random();
 
+  // Channel display name is user-visible (Android notification settings) — keep
+  // it generic so no tenant's brand leaks. The channel ID stays stable ('rg_general').
   static const _channel = AndroidNotificationChannel(
-    'rg_general', 'Rudraganga', description: 'General app notifications', importance: Importance.high,
+    'rg_general', 'General', description: 'General app notifications', importance: Importance.high,
   );
 
   /// High-importance channel for incoming consultation requests. Max importance
@@ -93,7 +95,7 @@ class LocalNotifs {
       title,
       body,
       const NotificationDetails(
-        android: AndroidNotificationDetails('rg_general', 'Rudraganga',
+        android: AndroidNotificationDetails('rg_general', 'General',
             channelDescription: 'General app notifications', importance: Importance.high, priority: Priority.high),
         iOS: DarwinNotificationDetails(),
       ),

@@ -88,7 +88,7 @@ class _AstroSettingsScreenState extends State<AstroSettingsScreen> {
   // ── Share the app (refer an astrologer) ──
   void _shareApp() {
     final msg =
-        '${Strings.of(context).joinMeOnRudragangaAsAn}${Strings.of(context).audioVideoAndEarnOnYour}https://rudraganga.app/astrologer';
+        '${Strings.of(context).joinMeOnRudragangaAsAn}${Strings.of(context).audioVideoAndEarnOnYour}https://astroapp.example/astrologer';
     Share.share(msg, subject: Strings.of(context).becomeAnAstrologerOnRudraganga);
   }
 

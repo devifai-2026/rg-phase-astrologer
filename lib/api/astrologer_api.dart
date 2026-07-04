@@ -97,7 +97,7 @@ class AstrologerApi {
     await _c.post('/notifications/click', body: {'broadcastId': broadcastId});
   }
 
-  /// Rate the Rudraganga app (1-5 + optional review). One rating per account
+  /// Rate the app (1-5 + optional review). One rating per account
   /// (re-submitting overwrites). Same endpoint the user app uses.
   Future<void> rateApp({required int rating, String? review}) async {
     await _c.post('/feedback/rate', body: {'rating': rating, if (review != null && review.isNotEmpty) 'review': review});

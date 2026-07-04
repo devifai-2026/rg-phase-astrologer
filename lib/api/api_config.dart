@@ -17,4 +17,16 @@ class ApiConfig {
 
   /// Socket.io connects to the host root, not /api.
   static String get socketUrl => host;
+
+  /// Multi-tenant: the tenant slug this build belongs to, stamped by the build
+  /// factory (`--dart-define=TENANT=<slug>`). Sent as `X-Tenant` on every REST
+  /// call + the socket handshake so the backend routes to the right tenant DB.
+  /// Empty in single-tenant/dev builds.
+  static const String tenant = String.fromEnvironment('TENANT', defaultValue: '');
+
+  /// Per-tenant deep-link URI scheme (e.g. `acme://...`). Stamped by the build
+  /// factory (`--dart-define=DEEPLINK_SCHEME=<scheme>`), matches the
+  /// AndroidManifest intent-filter (manifestPlaceholder `deepLinkScheme`).
+  static const String deepLinkScheme =
+      String.fromEnvironment('DEEPLINK_SCHEME', defaultValue: 'astroapp');
 }

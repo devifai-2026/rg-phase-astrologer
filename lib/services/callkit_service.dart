@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
+import '../api/api_config.dart';
 import 'astro_deep_link.dart';
 
 /// WhatsApp-style native incoming-call screen for consultation requests.
@@ -59,7 +60,7 @@ class CallKitService {
     final params = CallKitParams(
       id: _callId(sessionId),
       nameCaller: '$alias · $label',
-      appName: 'Rudraganga',
+      appName: 'Astro Partner',
       handle: 'Astrology consultation',
       type: isVideo ? 1 : 0, // 0 = audio, 1 = video native UI
       duration: timeoutSec * 1000, // auto-dismiss window (ms)
@@ -191,6 +192,6 @@ class CallKitService {
   /// the deep-link navigator (handles the cold-start case via its _pending).
   static void routeIntoApp(String sessionId, String serviceType) {
     if (kDebugMode) debugPrint('[CallKit] accept → route session $sessionId ($serviceType)');
-    AstroDeepLink.open('rudraganga://astro/incoming?sessionId=$sessionId&stype=$serviceType&accepted=1');
+    AstroDeepLink.open('${ApiConfig.deepLinkScheme}://astro/incoming?sessionId=$sessionId&stype=$serviceType&accepted=1');
   }
 }

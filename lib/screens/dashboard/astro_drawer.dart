@@ -186,7 +186,7 @@ class AstroDrawer extends StatelessWidget {
   }
 }
 
-/// "Rate Rudraganga" — 1-5 stars + optional review, posted to /feedback/rate
+/// "Rate the app" — 1-5 stars + optional review, posted to /feedback/rate
 /// (same endpoint the user app uses; one rating per account, re-submit updates).
 Future<void> showRateRudragangaDialog(BuildContext context) {
   return showDialog(context: context, builder: (_) => const _RateDialog());

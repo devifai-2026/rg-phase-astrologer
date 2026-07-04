@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../api/api_config.dart';
 import '../api/session_api.dart';
 import '../api/socket_service.dart';
 import '../providers/session_provider.dart';
@@ -19,7 +20,7 @@ import '../widgets/slide_route.dart';
 
 /// Routes a notification deep-link to a destination inside the astrologer app.
 ///
-/// The admin's "On tap, open" dropdown emits `rudraganga://astro/<route>` URIs
+/// The admin's "On tap, open" dropdown emits `<scheme>://astro/<route>` URIs
 /// (see ASTRO_LINK_TARGETS in admin/src/pages/Notifications.jsx) — this maps each
 /// to a tab or screen. Navigation goes through [navigatorKey] so it works from a
 /// notification tap (foreground/background/terminated), outside the widget tree.
@@ -37,7 +38,7 @@ class AstroDeepLink {
   /// still showing. Replayed by [flushPending] once the dashboard mounts.
   static String? _pending;
 
-  /// Handle a deep-link string. Accepts the full `rudraganga://astro/<route>`
+  /// Handle a deep-link string. Accepts the full `<scheme>://astro/<route>`
   /// URI or a bare `<route>`. Unknown/empty links just open the app (no-op).
   static void open(String? link) {
     if (link == null || link.isEmpty) return;
@@ -68,7 +69,7 @@ class AstroDeepLink {
       return;
     }
 
-    // AI recap review (Feature 1): rudraganga://astro/recaps?recapId=<id>.
+    // AI recap review (Feature 1): <scheme>://astro/recaps?recapId=<id>.
     // Open the queue, and jump straight to the named recap if provided.
     if (route == 'recaps') {
       final recapId = Uri.tryParse(link)?.queryParameters['recapId'];
@@ -215,7 +216,7 @@ class AstroDeepLink {
     if (pending == null) return;
     final sid = pending['sessionId']!;
     final stype = pending['serviceType'] ?? 'chat';
-    _acceptIncoming('rudraganga://astro/incoming?sessionId=$sid&stype=$stype&accepted=1');
+    _acceptIncoming('${ApiConfig.deepLinkScheme}://astro/incoming?sessionId=$sid&stype=$stype&accepted=1');
   }
 
   /// RESUME an already-active consultation after an app kill. The session is
@@ -260,14 +261,14 @@ class AstroDeepLink {
   }
 
   /// Extract the route segment from a deep-link. Handles
-  /// `rudraganga://astro/<route>?bid=...`, `astro/<route>`, and bare `<route>`.
-  /// Strips a leading user-app-style host too (so `rudraganga://notifications`
+  /// `<scheme>://astro/<route>?bid=...`, `astro/<route>`, and bare `<route>`.
+  /// Strips a leading user-app-style host too (so `<scheme>://notifications`
   /// from an "All apps" send still maps to the astrologer notifications screen).
   static String? _route(String link) {
     final uri = Uri.tryParse(link);
     if (uri == null) return null;
-    // rudraganga://astro/<route>  → host 'astro', path '/<route>'
-    // rudraganga://<route>        → host '<route>'
+    // <scheme>://astro/<route>  → host 'astro', path '/<route>'
+    // <scheme>://<route>        → host '<route>'
     final segments = [uri.host, ...uri.pathSegments].where((s) => s.isNotEmpty).toList();
     if (segments.isEmpty) return null;
     // Drop the 'astro' namespace if present.

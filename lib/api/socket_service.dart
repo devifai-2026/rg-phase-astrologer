@@ -74,7 +74,10 @@ class SocketService extends ChangeNotifier {
           // upgrade churn either. (Server allows both; we just pin the client.)
           .setTransports(['websocket'])
           .disableAutoConnect()
-          .setAuth({'token': token})
+          .setAuth({
+            'token': token,
+            if (ApiConfig.tenant.isNotEmpty) 'tenant': ApiConfig.tenant,
+          })
           .enableReconnection()
           .setReconnectionDelay(500)
           .setReconnectionDelayMax(3000)

@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
+import '../api/api_config.dart';
 import '../api/astrologer_api.dart';
 import '../api/session_api.dart';
 import 'astro_deep_link.dart';
@@ -47,7 +48,7 @@ Future<void> _onBackgroundMessage(RemoteMessage message) async {
   }
 
   // Draw the notification ourselves since data-only messages have no OS banner.
-  final title = (message.notification?.title ?? data['title'] ?? 'Rudraganga').toString();
+  final title = (message.notification?.title ?? data['title'] ?? 'New notification').toString();
   final body = (message.notification?.body ?? data['body'] ?? '').toString();
   if (title.isNotEmpty || body.isNotEmpty) {
     await LocalNotifs.show(title, body, payload: PushService._payloadUri(data));
@@ -148,7 +149,7 @@ class PushService {
         return;
       }
       final n = msg.notification;
-      final title = (n?.title ?? msg.data['title'] ?? 'Rudraganga').toString();
+      final title = (n?.title ?? msg.data['title'] ?? 'New notification').toString();
       final body = (n?.body ?? msg.data['body'] ?? '').toString();
       if (title.isEmpty && body.isEmpty) return;
       LocalNotifs.show(title, body, payload: _payloadUri(msg.data));
@@ -187,7 +188,7 @@ class PushService {
     // No explicit admin deeplink → route by the notification `type` (e.g.
     // new_follower → followers page), matching the foreground/in-app path.
     final type = (msg.data['type'] ?? '').toString();
-    if (type.isNotEmpty) AstroDeepLink.open('rudraganga://notification/$type');
+    if (type.isNotEmpty) AstroDeepLink.open('${ApiConfig.deepLinkScheme}://notification/$type');
   }
 
   /// Encode an FCM data map into a payload string for the local notification so
@@ -200,7 +201,7 @@ class PushService {
       return explicit.contains('?') ? '$explicit&bid=$bid' : '$explicit$q';
     }
     final type = (data['type'] ?? 'system').toString();
-    return 'rudraganga://notification/$type$q';
+    return '${ApiConfig.deepLinkScheme}://notification/$type$q';
   }
 
   /// Best-effort tap attribution → backend increments the broadcast's tap count.

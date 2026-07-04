@@ -37,7 +37,11 @@ class ApiClient {
           receiveTimeout: const Duration(seconds: 20),
           // Handle non-2xx ourselves so we can read the error envelope.
           validateStatus: (s) => s != null && s < 500,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            // Multi-tenant routing (see api_config.dart). Omitted in dev builds.
+            if (ApiConfig.tenant.isNotEmpty) 'X-Tenant': ApiConfig.tenant,
+          },
         )) {
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
