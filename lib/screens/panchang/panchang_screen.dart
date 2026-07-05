@@ -162,28 +162,50 @@ class _PanchangScreenState extends State<PanchangScreen> {
     );
   }
 
+  // Premium almanac card: gold accent rail + vertical layout (label eyebrow →
+  // value → timing chip → meaning) so long translated text never clips/misaligns.
   Widget _element(RgColors c, String label, PanchangElement e) {
     if (e.isEmpty) return const SizedBox.shrink();
+    final span = _span(e.start, e.end);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: c.ground2, borderRadius: BorderRadius.circular(14), border: Border.all(color: c.line)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Text(label, style: TextStyle(color: c.muted, fontSize: 12, fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Flexible(child: Text(e.name, textAlign: TextAlign.right, style: TextStyle(color: c.gold, fontSize: 16, fontWeight: FontWeight.w800))),
-          ]),
-          if (e.start.isNotEmpty || e.end.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(_span(e.start, e.end), style: TextStyle(color: c.muted, fontSize: 11.5)),
-          ],
-          if (e.meaning.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(e.meaning, style: TextStyle(color: c.ink, fontSize: 13, height: 1.4)),
-          ],
-        ]),
+        decoration: BoxDecoration(color: c.ground2, borderRadius: BorderRadius.circular(16), border: Border.all(color: c.line)),
+        clipBehavior: Clip.antiAlias,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: c.gold),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label.toUpperCase(),
+                          style: TextStyle(color: c.muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+                      const SizedBox(height: 3),
+                      Text(e.name, style: TextStyle(color: c.gold, fontSize: 17, fontWeight: FontWeight.w800, height: 1.2)),
+                      if (span.isNotEmpty) ...[
+                        const SizedBox(height: 7),
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.schedule_rounded, size: 13, color: c.muted),
+                          const SizedBox(width: 5),
+                          Flexible(child: Text(span, style: TextStyle(color: c.muted, fontSize: 12, fontWeight: FontWeight.w600))),
+                        ]),
+                      ],
+                      if (e.meaning.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(e.meaning, style: TextStyle(color: c.ink, fontSize: 13, height: 1.45)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
