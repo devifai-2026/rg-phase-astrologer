@@ -13,6 +13,7 @@ on:
       artifact:        { description: aab or apk, required: true, default: aab }
       application_id:  { description: Android applicationId, required: true }
       app_label:       { description: home-screen + notification app name, required: false, default: '' }
+      app_icon:        { description: launcher-icon source URL (tenant appIconUrl); empty keeps the default, required: false, default: '' }
       version_name:    { description: version name, required: true, default: '1.0.0' }
       version_code:    { description: version code (int), required: true, default: '1' }
       api_base:        { description: backend API base URL, required: true }
@@ -35,6 +36,23 @@ jobs:
 
       - name: Pub get
         run: flutter pub get
+
+      # Generate the launcher (home-screen) icon from the tenant's uploaded
+      # appIconUrl. Download it to the path pubspec's flutter_launcher_icons
+      # points at, then run the generator so every Android density + the adaptive
+      # icon are stamped for THIS tenant. Skipped when no icon URL was passed —
+      # the checked-in default icon is then kept.
+      - name: Generate tenant launcher icon
+        if: ${{ inputs.app_icon != '' }}
+        run: |
+          set -e
+          mkdir -p assets/icon
+          echo "Downloading launcher icon from ${{ inputs.app_icon }}"
+          curl -fsSL "${{ inputs.app_icon }}" -o assets/icon/app_icon.png
+          # Sanity: must be a real PNG (guards against an HTML error page).
+          file assets/icon/app_icon.png | grep -qi 'PNG image' || { echo "::error::app_icon is not a PNG"; exit 1; }
+          dart run flutter_launcher_icons
+          echo "Launcher icon generated for tenant ${{ inputs.tenant }}"
 
       # Fetch the google-services.json that matches THIS tenant's applicationId
       # from the shared Firebase project via the Management API. The backend

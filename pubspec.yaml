@@ -88,6 +88,23 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Generates the Android launcher (home-screen) icon from a source PNG. The
+  # tenant-build CI writes the tenant's uploaded appIconUrl to the image_path
+  # below, then runs `dart run flutter_launcher_icons` before the build so each
+  # tenant's APK ships its own icon. No source file → CI skips icon generation
+  # and the compiled default is kept.
+  flutter_launcher_icons: ^0.14.1
+
+# White-label launcher icon. image_path is populated at build time by CI from
+# the tenant's appIconUrl (see .github/workflows/tenant-build.yml). Kept out of
+# git — the checked-in default icon is used when no tenant icon is provided.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
 flutter:
   uses-material-design: true
