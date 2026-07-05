@@ -21,13 +21,24 @@ class RgLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
+    final logo = Strings.brandLogoUrl.trim();
+    final hasLogo = logo.isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           width: size,
           height: size,
-          child: CustomPaint(painter: _RgMarkPainter(red: c.redDeep, gold: c.gold, ink: c.ink, monogram: _initials(Strings.brandName))),
+          // Uploaded tenant logo → circular image; else the painted initials mark.
+          child: hasLogo
+              ? ClipOval(
+                  child: Image.network(
+                    logo,
+                    width: size, height: size, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => CustomPaint(painter: _RgMarkPainter(red: c.redDeep, gold: c.gold, ink: c.ink, monogram: _initials(Strings.brandName))),
+                  ),
+                )
+              : CustomPaint(painter: _RgMarkPainter(red: c.redDeep, gold: c.gold, ink: c.ink, monogram: _initials(Strings.brandName))),
         ),
         if (showWordmark && Strings.brandName.trim().isNotEmpty) ...[
           SizedBox(height: size * 0.16),

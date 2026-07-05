@@ -43,6 +43,10 @@ class Strings {
   /// Neutral default so a build with no config never shows another tenant's name.
   static String brandName = 'Astro App';
 
+  /// Tenant's uploaded logo URL (GET /app-config → logoUrl). Empty when unset —
+  /// RgLogo then falls back to the brand initials. Set once at startup.
+  static String brandLogoUrl = '';
+
   /// Look up a translated string and substitute the tenant brand into the
   /// `{appName}` placeholder, so localized text shows THIS tenant's name (never
   /// a hardcoded brand). Falls back to English, then the raw key.
