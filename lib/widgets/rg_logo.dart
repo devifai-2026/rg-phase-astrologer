@@ -1,10 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/rg_colors.dart';
+import '../i18n/strings.dart';
 
-/// The Rudraganga ("RG group") brand mark, drawn with a CustomPainter so it
-/// needs no image asset: a crimson disc with gold sun-rays and the "RG"
-/// monogram at the centre.
+/// Brand mark drawn with a CustomPainter (no image asset): a crimson disc with
+/// gold sun-rays. The wordmark is the TENANT's brand name (Strings.brandName,
+/// set from /app-config), so it's white-label — never a hardcoded brand.
 class RgLogo extends StatelessWidget {
   final double size;
   final bool showWordmark;
@@ -21,19 +22,23 @@ class RgLogo extends StatelessWidget {
           height: size,
           child: CustomPaint(painter: _RgMarkPainter(red: c.redDeep, gold: c.gold, ink: c.ink)),
         ),
-        if (showWordmark) ...[
+        if (showWordmark && Strings.brandName.trim().isNotEmpty) ...[
           SizedBox(height: size * 0.16),
-          Text.rich(
-            TextSpan(children: [
-              TextSpan(text: 'Rudra', style: TextStyle(color: c.ink)),
-              TextSpan(text: 'ganga', style: TextStyle(color: c.red)),
-            ]),
-            style: TextStyle(
-              fontSize: size * 0.22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
+          Builder(builder: (_) {
+            final name = Strings.brandName.trim();
+            final cut = name.length > 4 ? (name.length / 2).ceil() : name.length;
+            return Text.rich(
+              TextSpan(children: [
+                TextSpan(text: name.substring(0, cut), style: TextStyle(color: c.ink)),
+                if (cut < name.length) TextSpan(text: name.substring(cut), style: TextStyle(color: c.red)),
+              ]),
+              style: TextStyle(
+                fontSize: size * 0.22,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            );
+          }),
         ],
       ],
     );
