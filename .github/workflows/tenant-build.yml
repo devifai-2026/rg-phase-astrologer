@@ -22,9 +22,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Job-level so step-level `if:` can read env.FIREBASE_SA (the `secrets`
-      # context is NOT allowed in a step `if:` expression).
+      # Job-level so step-level `if:` can read these (the `secrets` context is
+      # NOT allowed in a step `if:` expression).
       FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+      ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -82,6 +83,25 @@ jobs:
           })().catch((e) => { console.error(e); process.exit(1); });
           EOF
 
+      # Decode the platform release keystore + write a props file so Gradle signs
+      # the release with it (else debug-signed → NOT Play-uploadable). Same
+      # keystore for every tenant; Play App Signing re-signs per app on Google's side.
+      - name: Prepare release signing
+        if: ${{ env.ANDROID_KEYSTORE_B64 != '' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          cat > "$RUNNER_TEMP/keystore.properties" <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+          echo "SIGN_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "SIGN_PROPS=$RUNNER_TEMP/keystore.properties" >> "$GITHUB_ENV"
+
       - name: Build ${{ inputs.artifact }} for tenant ${{ inputs.tenant }}
         id: build
         run: |
@@ -98,6 +118,12 @@ jobs:
             -Ptenant.applicationId="${{ inputs.application_id }}" \
             -Ptenant.appLabel="$APP_LABEL Astrologer" \
             -Ptenant.deepLinkScheme="$DEEPLINK" )
+          if [ -n "$SIGN_KEYSTORE" ]; then
+            COMMON+=( -Ptenant.keystore="$SIGN_KEYSTORE" -Ptenant.keystoreProps="$SIGN_PROPS" )
+            echo "Signing with platform release keystore."
+          else
+            echo "::warning::No keystore secret — build will be DEBUG-signed (not Play-ready)."
+          fi
           if [ "${{ inputs.artifact }}" = "apk" ]; then
             flutter build apk "${COMMON[@]}"
             echo "path=build/app/outputs/flutter-apk/app-release.apk" >> "$GITHUB_OUTPUT"
