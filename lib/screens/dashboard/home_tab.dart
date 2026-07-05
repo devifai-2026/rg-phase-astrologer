@@ -11,6 +11,7 @@ import '../../providers/notifications_provider.dart';
 import '../../providers/session_provider.dart';
 import '../../theme/rg_colors.dart';
 import '../ai/profile_optimizer_screen.dart';
+import '../tools/birth_chart_screen.dart';
 import '../ai/recap_list_screen.dart';
 import '../common/coming_soon_screen.dart';
 import '../followers/followers_screen.dart';
@@ -210,7 +211,8 @@ class _HomeTabState extends State<HomeTab> {
                 tintKey: _Tint.gold,
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HoroscopeScreen())),
               ),
-              _ToolTile(icon: Icons.bubble_chart_outlined, label: Strings.of(context).birthChart, tintKey: _Tint.violet),
+              _ToolTile(icon: Icons.bubble_chart_outlined, label: Strings.of(context).birthChart, tintKey: _Tint.violet,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BirthChartScreen()))),
               _ToolTile(
                 icon: Icons.calendar_month_outlined,
                 label: Strings.of(context).panchang,

@@ -418,6 +418,50 @@ class AstrologerApi {
       remaining: (m['remaining'] as num?)?.toInt() ?? 0,
     );
   }
+
+  // ── VedicAstro tools (instant, no cron) ──
+
+  /// Birthplace search → suggestions with lat/lon (via /geo/places).
+  Future<List<PlaceHit>> searchPlaces(String query) async {
+    final data = await _c.get('/geo/places', query: {'q': query.trim()});
+    return ((data as List?) ?? const [])
+        .map((e) => PlaceHit.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+  }
+
+  /// Birth chart (D1 Lagna) SVG. dob DD/MM/YYYY, tob HH:mm; lat/lon from search.
+  Future<String> birthChartSvg({required String dob, required String tob, double? lat, double? lon}) async {
+    final data = await _c.post('/astrologers/me/birth-chart', body: {
+      'dob': dob, 'tob': tob, if (lat != null) 'lat': lat, if (lon != null) 'lon': lon,
+    });
+    return (Map<String, dynamic>.from(data as Map)['svg'] ?? '').toString();
+  }
+
+  /// Manglik dosha for one birth. Returns the raw response map.
+  Future<Map<String, dynamic>> manglik({required String dob, required String tob, double? lat, double? lon}) async {
+    final data = await _c.post('/dosha/manglik', body: {
+      'dob': dob, 'tob': tob, if (lat != null) 'lat': lat, if (lon != null) 'lon': lon,
+    });
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  /// Aggregate marriage match between two births. Returns the raw response map.
+  Future<Map<String, dynamic>> matching({required Map<String, dynamic> girl, required Map<String, dynamic> boy}) async {
+    final data = await _c.post('/matching', body: {'girl': girl, 'boy': boy});
+    return Map<String, dynamic>.from(data as Map);
+  }
+}
+
+/// A birthplace search hit (name + coordinates) from /geo/places.
+class PlaceHit {
+  final String name;
+  final double? lat;
+  final double? lon;
+  const PlaceHit({required this.name, this.lat, this.lon});
+  factory PlaceHit.fromJson(Map<String, dynamic> j) => PlaceHit(
+        name: (j['name'] ?? '').toString(),
+        lat: (j['lat'] as num?)?.toDouble(),
+        lon: (j['lng'] as num?)?.toDouble(),
+      );
 }
 
 /// An admin-managed product category the astrologer can pick from.

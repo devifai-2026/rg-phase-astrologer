@@ -461,6 +461,13 @@ class Strings {
   String get matrimony => _t('matrimony');
   // ── Astrology tool tiles ──
   String get birthChart => _t('birthChart');
+  String get dateOfBirth => _t('dateOfBirth');
+  String get timeOfBirth => _t('timeOfBirth');
+  String get birthPlace => _t('birthPlace');
+  String get generateChart => _t('generateChart');
+  String get regenerate => _t('regenerate');
+  String get enterBirthDetails => _t('enterBirthDetails');
+  String get somethingWentWrong => _t('somethingWentWrong');
   String get brihatKundli => _t('brihatKundli');
   String get kundliMatching => _t('kundliMatching');
   String get kundliAiPlus => _t('kundliAiPlus');
@@ -874,6 +881,13 @@ class Strings {
       'kundli': 'Kundli',
       'matrimony': 'Matrimony',
       'birthChart': 'Birth\nChart',
+      'dateOfBirth': 'Date of birth',
+      'timeOfBirth': 'Time of birth',
+      'birthPlace': 'Birth place',
+      'generateChart': 'Generate chart',
+      'regenerate': 'Generate again',
+      'enterBirthDetails': 'Enter the birth details.',
+      'somethingWentWrong': 'Something went wrong. Please try again.',
       'brihatKundli': 'Brihat\nKundli',
       'kundliMatching': 'Kundli\nMatching',
       'kundliAiPlus': 'Kundli\nAI+',
