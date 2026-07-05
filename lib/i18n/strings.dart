@@ -47,6 +47,11 @@ class Strings {
   /// RgLogo then falls back to the brand initials. Set once at startup.
   static String brandLogoUrl = '';
 
+  /// Tenant tagline (GET /app-config → tagline, already localized by the server
+  /// to the requester's language). Empty when unset — callers fall back to the
+  /// static localized [tagline]. Set once at startup.
+  static String brandTagline = '';
+
   /// Look up a translated string and substitute the tenant brand into the
   /// `{appName}` placeholder, so localized text shows THIS tenant's name (never
   /// a hardcoded brand). Falls back to English, then the raw key.

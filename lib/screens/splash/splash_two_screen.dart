@@ -96,7 +96,10 @@ class _SplashTwoScreenState extends State<SplashTwoScreen> {
                 Text(t.appName, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: c.ink)),
                 const SizedBox(height: 6),
                 Text(
-                  t.consoleName,
+                  // Tenant tagline (from /app-config, server-localized) when set,
+                  // else the static "Astrologer Console" label.
+                  Strings.brandTagline.isNotEmpty ? Strings.brandTagline : t.consoleName,
+                  textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 15, color: c.gold, fontWeight: FontWeight.w600, letterSpacing: 0.4),
                 ),
                 const SizedBox(height: 40),

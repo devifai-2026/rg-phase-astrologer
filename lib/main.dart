@@ -72,6 +72,8 @@ Future<void> main() async {
     if (name.isNotEmpty) Strings.brandName = name;
     final logo = (data is Map && data['logoUrl'] is String) ? (data['logoUrl'] as String).trim() : '';
     if (logo.isNotEmpty) Strings.brandLogoUrl = logo;
+    final tag = (data is Map && data['tagline'] is String) ? (data['tagline'] as String).trim() : '';
+    if (tag.isNotEmpty) Strings.brandTagline = tag;
   } catch (_) {/* keep neutral default */}
   final api = AstrologerApi(client, tokens);
   final socket = SocketService(tokens);
