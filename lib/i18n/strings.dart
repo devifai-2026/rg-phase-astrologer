@@ -196,6 +196,10 @@ class Strings {
   String get discardThisRecap => _t('discardThisRecap');
   String get theSeekerWonTSeeIt => _t('theSeekerWonTSeeIt');
   String get cancel => _t('cancel');
+  String get youreOffline => _t('youreOffline');
+  String get goOnlineToStartLive => _t('goOnlineToStartLive');
+  String get goOnlineAndLive => _t('goOnlineAndLive');
+  String get couldNotConnectTryAgain => _t('couldNotConnectTryAgain');
   String get discard => _t('discard');
   String get couldNotDiscardPleaseTryAgain => _t('couldNotDiscardPleaseTryAgain');
   String get seekerSentiment => _t('seekerSentiment');
@@ -1241,6 +1245,10 @@ class Strings {
       'discardThisRecap': 'Discard this recap?',
       'theSeekerWonTSeeIt': 'The seeker won\'t see it. This can\'t be undone.',
       'cancel': 'Cancel',
+      'youreOffline': "You're offline",
+      'goOnlineToStartLive': 'You need to be online to start a live broadcast. Go online now and start?',
+      'goOnlineAndLive': 'Go Online & Live',
+      'couldNotConnectTryAgain': "Couldn't connect. Check your internet and try again.",
       'discard': 'Discard',
       'couldNotDiscardPleaseTryAgain': 'Could not discard — please try again',
       'seekerSentiment': 'Seeker sentiment',

@@ -25,6 +25,14 @@ class SocketService extends ChangeNotifier {
   Timer? _heartbeatTimer;
   Timer? _graceTimer; // debounces brief drops so the UI doesn't flap to "Connecting…"
 
+  // Socket host with the same fallback as the REST client: if the primary host
+  // (api.devifai.in) keeps failing to connect — usually its public DNS is
+  // briefly unresolvable — switch to the deterministic sslip.io fallback (which
+  // never flaps) and rebuild the socket there. Without this, "go online" spins
+  // on "Connecting…" forever while REST has already fallen back.
+  String _socketHost = ApiConfig.socketUrl;
+  int _connectErrors = 0;
+
   // Server → client callbacks the rest of the app can hook.
   void Function(Map<String, dynamic>)? onIncomingRequest;
   void Function(Map<String, dynamic>)? onReceiveMessage;
@@ -64,7 +72,7 @@ class SocketService extends ChangeNotifier {
     }
 
     _socket = io.io(
-      ApiConfig.socketUrl,
+      _socketHost,
       io.OptionBuilder()
           // WEBSOCKET ONLY. On Android, socket_io_client's XHR-polling transport
           // is unreliable — the long-poll GET hangs and the engine fires a
@@ -88,6 +96,7 @@ class SocketService extends ChangeNotifier {
     s.onConnect((_) {
       _graceTimer?.cancel();
       _connected = true;
+      _connectErrors = 0; // healthy again
       notifyListeners();
       _startHeartbeat();
       onConnected?.call();
@@ -105,7 +114,22 @@ class SocketService extends ChangeNotifier {
     });
     // Always send the freshest token on reconnect (it may have rotated).
     s.onReconnectAttempt((_) => s.auth = {'token': _tokens.accessToken ?? ''});
-    s.onConnectError((_) {/* surfaced via `connected` after the grace window */});
+    s.onConnectError((_) {
+      // After a few failed attempts on the primary host, assume its DNS is
+      // unresolvable on this network and rebuild the socket on the sslip.io
+      // fallback (once) — so "go online" doesn't spin forever while REST has
+      // already fallen back. Surfaced via `connected` after the grace window.
+      _connectErrors++;
+      if (_connectErrors >= 3 &&
+          ApiConfig.hasFallback &&
+          _socketHost != ApiConfig.fallbackHost) {
+        _socketHost = ApiConfig.fallbackHost;
+        _connectErrors = 0;
+        try { _socket?.dispose(); } catch (_) {}
+        _socket = null;
+        connect(); // rebuild on the fallback host
+      }
+    });
 
     s.on('incoming-request', (d) => onIncomingRequest?.call(_map(d)));
     s.on('receive-message', (d) => onReceiveMessage?.call(_map(d)));

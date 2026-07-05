@@ -184,7 +184,7 @@ class _HomeTabState extends State<HomeTab> {
           Text(Strings.of(context).reputation, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 16)),
           const SizedBox(height: 12),
           Row(children: [
-            _RepCell(icon: Icons.favorite, value: _fmt(p.followers), label: 'Followers', tint: c.red,
+            _RepCell(icon: Icons.favorite, value: _fmt(p.followers), label: Strings.of(context).followers, tint: c.red,
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FollowersScreen()))),
             const SizedBox(width: 10),
             _RepCell(icon: Icons.card_giftcard, value: '${p.giftCount}', label: Strings.of(context).gifts2, tint: c.gold),

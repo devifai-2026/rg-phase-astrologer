@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../api/astrologer_api.dart';
 import '../../api/live_api.dart';
+import '../../api/socket_service.dart';
 import '../../i18n/strings.dart';
+import '../../providers/session_provider.dart';
 import '../../theme/rg_colors.dart';
 import 'live_broadcast_screen.dart';
 
@@ -33,6 +36,33 @@ class _GoLiveSetupScreenState extends State<GoLiveSetupScreen> {
 
   Future<void> _goLive() async {
     if (_starting) return;
+
+    // Going live requires being ONLINE with a live socket — the broadcast is
+    // socket-driven, and attempting it while offline/connecting is what caused
+    // the "could not go live" failure. Gate on presence + socket; if not ready,
+    // offer to go online first (or cancel) instead of failing mid-way.
+    final session = context.read<SessionProvider>();
+    final socket = context.read<SocketService>();
+    if (!session.isOnline || !socket.connected) {
+      final proceed = await _confirmGoOnlineFirst();
+      if (proceed != true || !mounted) return;
+      // Go online, then wait (bounded) for the socket to actually connect.
+      try {
+        await context.read<AstrologerApi>().setOnline(true);
+        session.setOnline(true);
+        socket.connect();
+      } catch (_) {/* setOnline failure surfaces below as a not-connected timeout */}
+      final ok = await _waitForSocket(socket);
+      if (!ok) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(Strings.of(context).couldNotConnectTryAgain)),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
     setState(() => _starting = true);
     try {
       final result = await context.read<LiveApi>().goLive(title: _title.text.trim(), topic: _topic);
@@ -53,6 +83,40 @@ class _GoLiveSetupScreenState extends State<GoLiveSetupScreen> {
         SnackBar(content: Text('Could not go live: ${e.toString().replaceFirst('Exception: ', '')}')),
       );
     }
+  }
+
+  /// Modal shown when the astrologer taps Go Live while offline / not connected:
+  /// Cancel, or "Go Online & Live" (which flips them online, then proceeds).
+  Future<bool?> _confirmGoOnlineFirst() {
+    final c = context.rg;
+    final s = Strings.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.card,
+        title: Text(s.youreOffline, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800)),
+        content: Text(s.goOnlineToStartLive, style: TextStyle(color: c.muted, height: 1.4)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(s.cancel, style: TextStyle(color: c.muted))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: c.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(s.goOnlineAndLive, style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Wait (bounded) for the socket to actually connect after going online.
+  Future<bool> _waitForSocket(SocketService socket, {Duration timeout = const Duration(seconds: 8)}) async {
+    if (socket.connected) return true;
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (socket.connected) return true;
+    }
+    return socket.connected;
   }
 
   @override
