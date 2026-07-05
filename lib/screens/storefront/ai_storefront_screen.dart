@@ -28,6 +28,10 @@ class _AiStorefrontScreenState extends State<AiStorefrontScreen> {
   List<PoojaOffering> _poojas = [];
   bool _loading = true;
   bool _busy = false;
+  // The two calls that drive the quota UI (designs + usage). If EITHER fails we
+  // must NOT fall back to "you've used all 3" — that misreports a network error
+  // as an exhausted quota. We surface a retry state instead.
+  bool _loadFailed = false;
 
   AstrologerApi get _api => context.read<AstrologerApi>();
 
@@ -38,25 +42,42 @@ class _AiStorefrontScreenState extends State<AiStorefrontScreen> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() { _loading = true; _loadFailed = false; });
+    // Run all four independently so one failure never blanks the others. The
+    // designs + usage pair is what gates the CTA, so a failure THERE flips the
+    // retry state; products/poojas are only preview extras (soft-fail to empty).
+    final designsF = _api.listStorefrontDesigns();
+    final usageF = _api.storefrontDesignUsage();
+    final productsF = _api.myProducts().catchError((_) => <StoreProduct>[]);
+    final poojasF = _api.myPoojas().catchError((_) => <PoojaOffering>[]);
+
+    List<Map<String, dynamic>>? designs;
+    ({int used, int limit, int remaining})? usage;
+    var quotaFailed = false;
     try {
-      final results = await Future.wait([
-        _api.listStorefrontDesigns(),
-        _api.storefrontDesignUsage(),
-        _api.myProducts(),
-        _api.myPoojas(),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _layouts = results[0] as List<Map<String, dynamic>>;
-        _usage = results[1] as ({int used, int limit, int remaining});
-        // Only approved items show on the live storefront preview.
-        _products = (results[2] as List<StoreProduct>).where((p) => p.status == ProductStatus.approved).toList();
-        _poojas = (results[3] as List<PoojaOffering>).where((p) => p.status == ProductStatus.approved).toList();
-        _loading = false;
-      });
+      designs = await designsF;
+      usage = await usageF;
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      quotaFailed = true;
     }
+    final products = await productsF;
+    final poojas = await poojasF;
+    if (!mounted) return;
+
+    setState(() {
+      if (quotaFailed || designs == null || usage == null) {
+        // Couldn't load the quota/designs — keep whatever we had and show retry.
+        _loadFailed = true;
+      } else {
+        _layouts = designs;
+        _usage = usage;
+        _loadFailed = false;
+      }
+      // Only approved items show on the live storefront preview.
+      _products = products.where((p) => p.status == ProductStatus.approved).toList();
+      _poojas = poojas.where((p) => p.status == ProductStatus.approved).toList();
+      _loading = false;
+    });
   }
 
   Future<void> _generate() async {
@@ -95,9 +116,14 @@ class _AiStorefrontScreenState extends State<AiStorefrontScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
+    // When the quota load failed, usage is null — DON'T treat that as 0 remaining
+    // (that would falsely disable the button + say "used all 3"). We only know the
+    // real remaining once _usage is populated.
+    final hasUsage = _usage != null;
     final remaining = _usage?.remaining ?? 0;
     final limit = _usage?.limit ?? 3;
-    final canGenerate = remaining > 0 && !_busy;
+    // Can generate only when we actually have usage data showing credits left.
+    final canGenerate = hasUsage && remaining > 0 && !_busy;
 
     return Scaffold(
       backgroundColor: c.ground,
@@ -140,23 +166,40 @@ class _AiStorefrontScreenState extends State<AiStorefrontScreen> {
                           style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: c.indigo, minimumSize: const Size.fromHeight(48)),
                           icon: _busy
                               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.auto_awesome),
-                          label: Text(_busy ? Strings.of(context).theStarsAreDesigning : Strings.of(context).designMyStorefront, style: const TextStyle(fontWeight: FontWeight.w800)),
-                          onPressed: canGenerate ? _generate : null,
+                              : Icon(_loadFailed ? Icons.refresh : Icons.auto_awesome),
+                          // On a failed load the CTA becomes a Retry — the quota is
+                          // unknown, so we don't pretend it's used up.
+                          label: Text(
+                            _busy
+                                ? Strings.of(context).theStarsAreDesigning
+                                : _loadFailed
+                                    ? Strings.of(context).retry
+                                    : Strings.of(context).designMyStorefront,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          onPressed: _busy ? null : (_loadFailed ? _load : (canGenerate ? _generate : null)),
                         ),
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        remaining > 0
-                            ? Strings.of(context).remainingOfLimitFreeDesignsLeft(remaining, limit)
-                            : Strings.of(context).youVeUsedAllLimitDesigns(limit),
+                        _loadFailed
+                            ? Strings.of(context).couldNotLoadTapRetry
+                            : remaining > 0
+                                ? Strings.of(context).remainingOfLimitFreeDesignsLeft(remaining, limit)
+                                : Strings.of(context).youVeUsedAllLimitDesigns(limit),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ]),
                   ),
                   const SizedBox(height: 22),
 
-                  if (_layouts.isEmpty)
+                  if (_loadFailed)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36),
+                      child: Center(child: Text(Strings.of(context).couldNotLoadTapRetry,
+                          textAlign: TextAlign.center, style: TextStyle(color: c.muted, height: 1.5))),
+                    )
+                  else if (_layouts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 36),
                       child: Center(child: Text(Strings.of(context).noDesignsYetTapTheButton,

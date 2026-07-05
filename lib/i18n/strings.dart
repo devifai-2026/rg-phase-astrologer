@@ -184,6 +184,7 @@ class Strings {
   String get impact => _t('impact');
   String get aiRecaps => _t('aiRecaps');
   String get retry => _t('retry');
+  String get couldNotLoadTapRetry => _t('couldNotLoadTapRetry');
   String get consultationRecap => _t('consultationRecap');
   String get recapSharedWithTheSeeker => _t('recapSharedWithTheSeeker');
   String get couldNotPublishPleaseTryAgain => _t('couldNotPublishPleaseTryAgain');
@@ -1228,6 +1229,7 @@ class Strings {
       'impact': 'impact',
       'aiRecaps': 'AI recaps',
       'retry': 'Retry',
+      'couldNotLoadTapRetry': "Couldn't load. Tap Retry to try again.",
       'consultationRecap': 'Consultation recap',
       'recapSharedWithTheSeeker': 'Recap shared with the seeker',
       'couldNotPublishPleaseTryAgain': 'Could not publish — please try again',
@@ -1939,6 +1941,7 @@ class Strings {
       'impact': 'प्रभाव',
       'aiRecaps': 'एआई सारांश',
       'retry': 'पुन: प्रयास करें',
+      'couldNotLoadTapRetry': 'लोड नहीं हो सका। पुनः प्रयास के लिए Retry दबाएँ।',
       'consultationRecap': 'परामर्श का सारांश',
       'recapSharedWithTheSeeker': 'प्रश्नकर्ता के साथ सारांश साझा किया गया',
       'couldNotPublishPleaseTryAgain': 'प्रकाशित नहीं हो सका — कृपया पुनः प्रयास करें',
@@ -2646,6 +2649,7 @@ class Strings {
       'impact': 'প্রভাব',
       'aiRecaps': 'এআই রিক্যাপস',
       'retry': 'পুনরায় চেষ্টা করুন',
+      'couldNotLoadTapRetry': 'লোড করা যায়নি। আবার চেষ্টা করতে Retry চাপুন।',
       'consultationRecap': 'পরামর্শের সারসংক্ষেপ',
       'recapSharedWithTheSeeker': 'অনুসন্ধানকারীর সাথে ভাগ করা সারসংক্ষেপ',
       'couldNotPublishPleaseTryAgain': 'প্রকাশ করা সম্ভব হয়নি — অনুগ্রহ করে আবার চেষ্টা করুন।',
@@ -3327,6 +3331,7 @@ class Strings {
       'impact': 'प्रभाव',
       'aiRecaps': 'एआय सारांश',
       'retry': 'पुन्हा प्रयत्न करा',
+      'couldNotLoadTapRetry': 'लोड होऊ शकले नाही. पुन्हा प्रयत्न करण्यासाठी Retry दाबा.',
       'consultationRecap': 'सल्लामसलतीचा आढावा',
       'recapSharedWithTheSeeker': 'शोधकर्त्याला शेअर केलेला सारांश',
       'couldNotPublishPleaseTryAgain': 'प्रकाशित करता आले नाही — कृपया पुन्हा प्रयत्न करा',
@@ -4008,6 +4013,7 @@ class Strings {
       'impact': 'ਪ੍ਰਭਾਵ',
       'aiRecaps': 'ਏਆਈ ਰੀਕੈਪ',
       'retry': 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ',
+      'couldNotLoadTapRetry': 'ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਲਈ Retry ਦਬਾਓ।',
       'consultationRecap': 'ਸਲਾਹ-ਮਸ਼ਵਰੇ ਦਾ ਸੰਖੇਪ',
       'recapSharedWithTheSeeker': 'ਖੋਜਕਰਤਾ ਨਾਲ ਸਾਂਝਾ ਕੀਤਾ ਗਿਆ ਸੰਖੇਪ',
       'couldNotPublishPleaseTryAgain': 'ਪ੍ਰਕਾਸ਼ਿਤ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ — ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
@@ -4689,6 +4695,7 @@ class Strings {
       'impact': 'প্ৰভাৱ',
       'aiRecaps': 'এআইৰ পুনৰাবৃত্তি',
       'retry': 'পুনৰ চেষ্টা কৰক',
+      'couldNotLoadTapRetry': 'লোড কৰিব পৰা নগল। পুনৰ চেষ্টাৰ বাবে Retry টিপক।',
       'consultationRecap': 'পৰামৰ্শৰ পুনৰাবৃত্তি',
       'recapSharedWithTheSeeker': 'Recap সাধকৰ সৈতে শ্বেয়াৰ কৰা হৈছে',
       'couldNotPublishPleaseTryAgain': 'প্ৰকাশ কৰিব পৰা নগ\'ল — অনুগ্ৰহ কৰি পুনৰ চেষ্টা কৰক',
@@ -5367,6 +5374,7 @@ class Strings {
       'impact': 'ಪರಿಣಾಮ',
       'aiRecaps': 'AI ಸಾರಾಂಶಗಳು',
       'retry': 'ಮರುಪ್ರಯತ್ನಿಸಿ',
+      'couldNotLoadTapRetry': 'ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲು Retry ಒತ್ತಿ.',
       'consultationRecap': 'ಸಮಾಲೋಚನೆಯ ಸಾರಾಂಶ',
       'recapSharedWithTheSeeker': 'ಅನ್ವೇಷಕರೊಂದಿಗೆ ಹಂಚಿಕೊಂಡ ಸಾರಾಂಶ',
       'couldNotPublishPleaseTryAgain': 'ಪ್ರಕಟಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ — ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
@@ -6075,6 +6083,7 @@ class Strings {
       'impact': 'ప్రభావం',
       'aiRecaps': 'AI రీక్యాప్‌లు',
       'retry': 'మళ్ళీ ప్రయత్నించండి',
+      'couldNotLoadTapRetry': 'లోడ్ కాలేదు. మళ్ళీ ప్రయత్నించడానికి Retry నొక్కండి.',
       'consultationRecap': 'సంప్రదింపుల సారాంశం',
       'recapSharedWithTheSeeker': 'అన్వేషకుడితో పంచుకున్న సారాంశం',
       'couldNotPublishPleaseTryAgain': 'ప్రచురించలేకపోయాము — దయచేసి మళ్ళీ ప్రయత్నించండి',
@@ -6783,6 +6792,7 @@ class Strings {
       'impact': 'தாக்கம்',
       'aiRecaps': 'AI சுருக்கங்கள்',
       'retry': 'மீண்டும் முயற்சி',
+      'couldNotLoadTapRetry': 'ஏற்ற முடியவில்லை. மீண்டும் முயற்சிக்க Retry தட்டவும்.',
       'consultationRecap': 'கலந்தாய்வுச் சுருக்கம்',
       'recapSharedWithTheSeeker': 'தேடுபவருடன் பகிரப்பட்ட சுருக்கம்',
       'couldNotPublishPleaseTryAgain': 'வெளியிட முடியவில்லை — தயவுசெய்து மீண்டும் முயற்சிக்கவும்.',
