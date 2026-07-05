@@ -91,9 +91,9 @@ class AstroDrawer extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 children: [
                   _item(c, Icons.dashboard_outlined, Strings.of(context).home, () => goTab(DashboardShell.tabHome)),
-                  _item(c, Icons.call_received, 'Requests', () => goTab(DashboardShell.tabRequests)),
-                  _item(c, Icons.history, 'History', () => goTab(DashboardShell.tabHistory)),
-                  _item(c, Icons.account_balance_wallet_outlined, 'Earnings', () => goTab(DashboardShell.tabEarnings)),
+                  _item(c, Icons.call_received, Strings.of(context).requests, () => goTab(DashboardShell.tabRequests)),
+                  _item(c, Icons.history, Strings.of(context).history, () => goTab(DashboardShell.tabHistory)),
+                  _item(c, Icons.account_balance_wallet_outlined, Strings.of(context).earnings, () => goTab(DashboardShell.tabEarnings)),
                   Divider(height: 1, color: c.line),
                   _item(c, Icons.auto_fix_high, 'AI Profile Optimizer', () => push(const ProfileOptimizerScreen())),
                   _item(c, Icons.storefront, 'My Storefront', () => push(const StorefrontScreen())),

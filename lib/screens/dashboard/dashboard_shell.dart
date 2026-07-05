@@ -239,10 +239,10 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
             NavigationDestination(
               icon: _BadgeIcon(icon: Icons.call_received, count: session.incomingKind != null ? 1 : 0),
               selectedIcon: const Icon(Icons.call_received),
-              label: 'Requests',
+              label: Strings.of(context).requests,
             ),
-            const NavigationDestination(icon: Icon(Icons.history_outlined), selectedIcon: Icon(Icons.history), label: 'History'),
-            const NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Earnings'),
+            NavigationDestination(icon: const Icon(Icons.history_outlined), selectedIcon: const Icon(Icons.history), label: Strings.of(context).history),
+            NavigationDestination(icon: const Icon(Icons.account_balance_wallet_outlined), selectedIcon: const Icon(Icons.account_balance_wallet), label: Strings.of(context).earnings),
             NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: Strings.of(context).profile),
           ],
         ),
