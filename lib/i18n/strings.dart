@@ -196,6 +196,10 @@ class Strings {
   String get discardThisRecap => _t('discardThisRecap');
   String get theSeekerWonTSeeIt => _t('theSeekerWonTSeeIt');
   String get cancel => _t('cancel');
+  String get exitAppTitle => _t('exitAppTitle');
+  String get exitAppBody => _t('exitAppBody');
+  String get exitAppConfirm => _t('exitAppConfirm');
+  String get stay => _t('stay');
   String get youreOffline => _t('youreOffline');
   String get goOnlineToStartLive => _t('goOnlineToStartLive');
   String get goOnlineAndLive => _t('goOnlineAndLive');
@@ -616,6 +620,8 @@ class Strings {
   String get eachSuggestionIsRankedByImpact => _t('eachSuggestionIsRankedByImpact');
   String get goLive2 => _t('goLive2');
   String get hostALiveSession => _t('hostALiveSession');
+  String get settingsAndPresets => _t('settingsAndPresets');
+  String get liveHistory => _t('liveHistory');
   String get broadcastALiveQAViewers => _t('broadcastALiveQAViewers');
   String get whenToStartABusiness => _t('whenToStartABusiness');
   String get aiModeratesEverything => _t('aiModeratesEverything');
@@ -1024,6 +1030,8 @@ class Strings {
       'eachSuggestionIsRankedByImpact': 'Each suggestion is ranked by impact. Tap Apply and watch your score — and your visibility — climb.',
       'goLive2': 'GO LIVE',
       'hostALiveSession': 'Host a live session',
+      'settingsAndPresets': 'Settings & Presets',
+      'liveHistory': 'Live History',
       'broadcastALiveQAViewers': 'Broadcast a live Q&A. Viewers join, send text questions and paid superchats — all in real time.',
       'whenToStartABusiness': 'When to start a business?',
       'aiModeratesEverything': 'AI moderates everything',
@@ -1245,6 +1253,10 @@ class Strings {
       'discardThisRecap': 'Discard this recap?',
       'theSeekerWonTSeeIt': 'The seeker won\'t see it. This can\'t be undone.',
       'cancel': 'Cancel',
+      'exitAppTitle': 'Leave the app?',
+      'exitAppBody': 'Are you sure you want to exit?',
+      'exitAppConfirm': 'Exit',
+      'stay': 'Stay',
       'youreOffline': "You're offline",
       'goOnlineToStartLive': 'You need to be online to start a live broadcast. Go online now and start?',
       'goOnlineAndLive': 'Go Online & Live',

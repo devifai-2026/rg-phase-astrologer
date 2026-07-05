@@ -95,10 +95,10 @@ class AstroDrawer extends StatelessWidget {
                   _item(c, Icons.history, Strings.of(context).history, () => goTab(DashboardShell.tabHistory)),
                   _item(c, Icons.account_balance_wallet_outlined, Strings.of(context).earnings, () => goTab(DashboardShell.tabEarnings)),
                   Divider(height: 1, color: c.line),
-                  _item(c, Icons.auto_fix_high, 'AI Profile Optimizer', () => push(const ProfileOptimizerScreen())),
-                  _item(c, Icons.storefront, 'My Storefront', () => push(const StorefrontScreen())),
-                  _item(c, Icons.notifications_none_rounded, 'Notifications', () => push(const NotificationsScreen())),
-                  _item(c, Icons.tune, 'Settings & Presets', () => push(const AstroSettingsScreen())),
+                  _item(c, Icons.auto_fix_high, Strings.of(context).aiProfileOptimizer, () => push(const ProfileOptimizerScreen())),
+                  _item(c, Icons.storefront, Strings.of(context).myStorefront, () => push(const StorefrontScreen())),
+                  _item(c, Icons.notifications_none_rounded, Strings.of(context).notifications, () => push(const NotificationsScreen())),
+                  _item(c, Icons.tune, Strings.of(context).settingsAndPresets, () => push(const AstroSettingsScreen())),
                   _item(c, Icons.translate, Strings.of(context).changeLanguage, () {
                     Navigator.of(context).pop();
                     showLanguageSheet(context);

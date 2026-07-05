@@ -150,7 +150,7 @@ class _LiveRecapScreenState extends State<LiveRecapScreen> {
         // ── AI recap (if cached) ──
         if (d.aiSummary.isNotEmpty) ...[
           const SizedBox(height: 12),
-          _section(c, Icons.summarize_outlined, 'AI recap', c.blue),
+          _section(c, Icons.summarize_outlined, Strings.of(context).aiRecap, c.blue),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(14),

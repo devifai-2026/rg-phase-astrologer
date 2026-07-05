@@ -174,8 +174,8 @@ final List<OnboardModule> onboardModules = [
   // 5) GO LIVE + how AI works
   OnboardModule(key: 'live', name: 'GO LIVE', cards: [
     OnboardCard(
-      title: 'Host a live session',
-      body: 'Broadcast a live Q&A. Viewers join, send text questions and paid superchats — all in real time.',
+      titleL10n: (ctx) => Strings.of(ctx).hostALiveSession,
+      bodyL10n: (ctx) => Strings.of(ctx).broadcastALiveQAViewers,
       icon: Icons.sensors,
       tint: (c) => c.indigo,
       mock: (ctx, c) => Column(children: [
@@ -197,8 +197,8 @@ final List<OnboardModule> onboardModules = [
       ]),
     ),
     OnboardCard(
-      title: 'AI moderates everything',
-      body: 'The AI removes abuse, spam, phone numbers, links and self-promotion, clubs similar questions, and auto-runs polls — so you just focus on guiding.',
+      titleL10n: (ctx) => Strings.of(ctx).aiModeratesEverything,
+      bodyL10n: (ctx) => Strings.of(ctx).theAiRemovesAbuseSpamPhone,
       icon: Icons.smart_toy,
       tint: (c) => c.mint,
       mock: (ctx, c) => _pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -218,8 +218,8 @@ final List<OnboardModule> onboardModules = [
       ])),
     ),
     OnboardCard(
-      title: 'AI recap when you end',
-      body: 'After the session, AI summarises highlights, top superchats, questions answered, and suggests products to promote next.',
+      titleL10n: (ctx) => Strings.of(ctx).aiRecapWhenYouEnd,
+      bodyL10n: (ctx) => Strings.of(ctx).afterTheSessionAiSummarisesHighlights,
       icon: Icons.auto_awesome,
       tint: (c) => c.violet,
       mock: (ctx, c) => _pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

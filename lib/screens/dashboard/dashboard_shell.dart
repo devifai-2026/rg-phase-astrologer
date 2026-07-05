@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../api/astrologer_api.dart';
@@ -179,7 +180,15 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
     // Floating "Resume" pill when a consultation is live but minimized.
     final hasActive = session.activeSessionId != null;
 
-    return Scaffold(
+    // Back at the dashboard root confirms before exiting (Stay emphasized).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await _confirmExit(context);
+        if (leave == true) SystemNavigator.pop();
+      },
+      child: Scaffold(
       backgroundColor: c.ground,
       drawer: const AstroDrawer(),
       floatingActionButton: hasActive
@@ -246,6 +255,28 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
             NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: Strings.of(context).profile),
           ],
         ),
+      ),
+      ), // Scaffold
+    ); // PopScope
+  }
+
+  Future<bool?> _confirmExit(BuildContext context) {
+    final c = context.rg;
+    final s = Strings.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.card,
+        title: Text(s.exitAppTitle, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800)),
+        content: Text(s.exitAppBody, style: TextStyle(color: c.muted)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(s.exitAppConfirm, style: TextStyle(color: c.muted))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: c.red),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(s.stay, style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
       ),
     );
   }

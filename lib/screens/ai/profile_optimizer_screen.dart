@@ -87,7 +87,7 @@ class _ProfileOptimizerScreenState extends State<ProfileOptimizerScreen> with Si
           ),
           const SizedBox(height: 24),
           Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final x in [Strings.of(context).photo, Strings.of(context).bio2, Strings.of(context).pricing, Strings.of(context).languages, Strings.of(context).expertise2, 'Availability'])
+            for (final x in [Strings.of(context).photo, Strings.of(context).bio2, Strings.of(context).pricing, Strings.of(context).languages, Strings.of(context).expertise2, Strings.of(context).availability])
               Chip(
                 label: Text(x, style: TextStyle(color: c.ink, fontSize: 12.5)),
                 backgroundColor: c.ground2,

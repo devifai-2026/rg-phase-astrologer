@@ -69,7 +69,7 @@ class _RequestsScreenState extends State<RequestsScreen> with SingleTickerProvid
             indicatorSize: TabBarIndicatorSize.label,
             labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
             unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            tabs: const [Tab(text: 'Live'), Tab(text: 'History')],
+            tabs: [Tab(text: Strings.of(context).live), Tab(text: Strings.of(context).history)],
           ),
           Expanded(
             child: TabBarView(

@@ -118,7 +118,7 @@ class ProfileTab extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Availability.
-                _sectionLabel(c, 'Availability'),
+                _sectionLabel(c, t.availability),
                 const SizedBox(height: 8),
                 const StatusToggle(),
                 const SizedBox(height: 24),
@@ -132,10 +132,10 @@ class ProfileTab extends StatelessWidget {
                 // Manage.
                 _sectionLabel(c, t.manage),
                 const SizedBox(height: 8),
-                _navTile(context, Icons.auto_fix_high, 'AI Profile Optimizer', c.violet, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileOptimizerScreen()))),
+                _navTile(context, Icons.auto_fix_high, t.aiProfileOptimizer, c.violet, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProfileOptimizerScreen()))),
                 _navTile(context, Icons.auto_awesome, t.aiChatRecaps2, c.violet, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RecapListScreen()))),
-                _navTile(context, Icons.storefront, 'My Storefront', c.gold, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StorefrontScreen()))),
-                _navTile(context, Icons.tune, 'Settings & Presets', c.red, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AstroSettingsScreen()))),
+                _navTile(context, Icons.storefront, t.myStorefront, c.gold, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StorefrontScreen()))),
+                _navTile(context, Icons.tune, t.settingsAndPresets, c.red, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AstroSettingsScreen()))),
                 const SizedBox(height: 24),
 
                 // Theme.

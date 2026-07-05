@@ -245,7 +245,7 @@ class _AddPoojaScreenState extends State<AddPoojaScreen> {
             ]),
             const SizedBox(height: 16),
 
-            _label(c, 'Availability'),
+            _label(c, Strings.of(context).availability),
             const SizedBox(height: 8),
             // Mode: Any day · Single date · Date range.
             Wrap(spacing: 8, runSpacing: 8, children: [

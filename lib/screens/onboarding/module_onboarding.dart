@@ -10,10 +10,26 @@ import 'onboarding_content.dart';
 class OnboardCard {
   final String title;
   final String body;
+  // Optional localized builders — when set, they win over the static [title]/
+  // [body] at render time (a const card can't call Strings.of(context), so
+  // translatable cards pass these instead).
+  final String Function(BuildContext)? titleL10n;
+  final String Function(BuildContext)? bodyL10n;
   final IconData icon;
   final Color Function(RgColors) tint;
   final Widget Function(BuildContext, RgColors) mock;
-  const OnboardCard({required this.title, required this.body, required this.icon, required this.tint, required this.mock});
+  const OnboardCard({
+    this.title = '',
+    this.body = '',
+    this.titleL10n,
+    this.bodyL10n,
+    required this.icon,
+    required this.tint,
+    required this.mock,
+  });
+
+  String resolvedTitle(BuildContext ctx) => titleL10n != null ? titleL10n!(ctx) : title;
+  String resolvedBody(BuildContext ctx) => bodyL10n != null ? bodyL10n!(ctx) : body;
 }
 
 /// A named module walkthrough (a sequence of [OnboardCard]s).
@@ -184,9 +200,9 @@ class _CardViewState extends State<_CardView> with SingleTickerProviderStateMixi
                   child: Icon(widget.card.icon, color: widget.card.tint(c), size: 24),
                 ),
                 const SizedBox(height: 12),
-                Text(widget.card.title, textAlign: TextAlign.center, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 21)),
+                Text(widget.card.resolvedTitle(context), textAlign: TextAlign.center, style: TextStyle(color: c.ink, fontWeight: FontWeight.w800, fontSize: 21)),
                 const SizedBox(height: 8),
-                Text(widget.card.body, textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 14, height: 1.5)),
+                Text(widget.card.resolvedBody(context), textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 14, height: 1.5)),
               ]),
             ),
           ),
