@@ -12,6 +12,8 @@ import '../../providers/session_provider.dart';
 import '../../theme/rg_colors.dart';
 import '../ai/profile_optimizer_screen.dart';
 import '../tools/birth_chart_screen.dart';
+import '../tools/matching_screen.dart';
+import '../tools/manglik_screen.dart';
 import '../ai/recap_list_screen.dart';
 import '../common/coming_soon_screen.dart';
 import '../followers/followers_screen.dart';
@@ -219,9 +221,13 @@ class _HomeTabState extends State<HomeTab> {
                 tintKey: _Tint.blue,
                 onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PanchangScreen())),
               ),
-              _ToolTile(icon: Icons.diversity_3_outlined, label: Strings.of(context).matrimony, tintKey: _Tint.green),
+              _ToolTile(icon: Icons.diversity_3_outlined, label: Strings.of(context).matrimony, tintKey: _Tint.green,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MatchingScreen()))),
               _ToolTile(icon: Icons.menu_book_outlined, label: Strings.of(context).brihatKundli, tintKey: _Tint.gold),
-              _ToolTile(icon: Icons.favorite_border, label: Strings.of(context).kundliMatching, tintKey: _Tint.red),
+              _ToolTile(icon: Icons.favorite_border, label: Strings.of(context).kundliMatching, tintKey: _Tint.red,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MatchingScreen()))),
+              _ToolTile(icon: Icons.warning_amber_rounded, label: Strings.of(context).manglikDosh, tintKey: _Tint.violet,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ManglikScreen()))),
             ],
           ),
         ],
