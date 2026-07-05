@@ -56,32 +56,53 @@ class ApiClient {
     ));
   }
 
+  // Stick to the fallback host once it works, for the rest of the session.
+  bool _useFallback = false;
+
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
-      _send(() => dio.get(path, queryParameters: query), path);
+      _send((url) => dio.get(url, queryParameters: query), path);
 
   Future<dynamic> post(String path, {Object? body}) =>
-      _send(() => dio.post(path, data: body), path);
+      _send((url) => dio.post(url, data: body), path);
 
   Future<dynamic> put(String path, {Object? body}) =>
-      _send(() => dio.put(path, data: body), path);
+      _send((url) => dio.put(url, data: body), path);
 
   Future<dynamic> patch(String path, {Object? body}) =>
-      _send(() => dio.patch(path, data: body), path);
+      _send((url) => dio.patch(url, data: body), path);
 
   Future<dynamic> delete(String path, {Object? body}) =>
-      _send(() => dio.delete(path, data: body), path);
+      _send((url) => dio.delete(url, data: body), path);
 
-  Future<dynamic> _send(Future<Response> Function() run, String path) async {
+  /// The request URL: absolute fallback URL when on the fallback host, else the
+  /// relative path (resolved against the primary baseUrl).
+  String _url(String path, bool fallback) =>
+      fallback ? '${ApiConfig.fallbackApiBase}$path' : path;
+
+  Future<dynamic> _send(Future<Response> Function(String url) run, String path) async {
     Response res;
     try {
-      res = await run();
+      res = await run(_url(path, _useFallback));
     } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionError ||
+      final isConn = e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
+          e.type == DioExceptionType.receiveTimeout;
+      // Primary host unreachable → retry ONCE against the deterministic sslip.io
+      // fallback, then stick to it. Report the fallback event so the PO console
+      // can graph how many users hit the DNS/network issue.
+      if (isConn && ApiConfig.hasFallback && !_useFallback) {
+        try {
+          res = await run(_url(path, true));
+          _useFallback = true;
+          _reportFallback();
+        } on DioException {
+          throw ApiException('No connection to the server', statusCode: null);
+        }
+      } else if (isConn) {
         throw ApiException('No connection to the server', statusCode: null);
+      } else {
+        throw ApiException(e.message ?? 'Request failed');
       }
-      throw ApiException(e.message ?? 'Request failed');
     }
 
     // Access token expired → single refresh, then replay ONCE.
@@ -94,7 +115,7 @@ class ApiClient {
       final refreshed = await _refresh();
       if (refreshed) {
         try {
-          res = await run(); // single replay with the fresh token
+          res = await run(_url(path, _useFallback)); // single replay with the fresh token
         } on DioException catch (e) {
           throw ApiException(e.message ?? 'Request failed');
         }
@@ -124,11 +145,25 @@ class ApiClient {
   Future<bool>? _refreshing;
   Future<bool> _refresh() => _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
 
+  // One-shot beacon: tell the backend a client had to fall back to the sslip
+  // host (primary DNS/connection failed). Best-effort, never throws, fires once
+  // per session so the PO console can graph impacted users by tenant + app.
+  bool _reported = false;
+  void _reportFallback() {
+    if (_reported) return;
+    _reported = true;
+    dio.post('${ApiConfig.fallbackApiBase}/telemetry/net-fallback', data: {
+      'app': 'astrologer',
+      'tenant': ApiConfig.tenant,
+      'primaryHost': ApiConfig.host,
+    }).catchError((_) => Response(requestOptions: RequestOptions(path: '')));
+  }
+
   Future<bool> _doRefresh() async {
     final rt = tokens.refreshToken;
     if (rt == null || rt.isEmpty) return false;
     try {
-      final res = await dio.post('/auth/refresh', data: {'refreshToken': rt});
+      final res = await dio.post(_url('/auth/refresh', _useFallback), data: {'refreshToken': rt});
       if (res.data is Map && res.data['success'] == true) {
         final d = res.data['data'] as Map;
         await tokens.save(

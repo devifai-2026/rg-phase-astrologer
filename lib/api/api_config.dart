@@ -12,8 +12,21 @@ class ApiConfig {
     defaultValue: 'http://10.0.2.2:5050',
   );
 
+  /// Fallback backend host, used ONLY when the primary [host] can't be reached
+  /// (DNS/connection failure). Defaults to the IP-encoded sslip.io host, which
+  /// is DETERMINISTIC (sslip.io decodes the IP from the name), so it never flaps
+  /// the way api.devifai.in can on public resolvers. Lets the app self-heal.
+  static const String fallbackHost = String.fromEnvironment(
+    'RG_API_FALLBACK',
+    defaultValue: 'https://34-93-133-182.sslip.io',
+  );
+
+  /// True when a distinct, non-empty fallback host is configured.
+  static bool get hasFallback => fallbackHost.isNotEmpty && fallbackHost != host;
+
   /// REST base — every endpoint is relative to this.
   static String get apiBase => '$host/api';
+  static String get fallbackApiBase => '$fallbackHost/api';
 
   /// Socket.io connects to the host root, not /api.
   static String get socketUrl => host;
