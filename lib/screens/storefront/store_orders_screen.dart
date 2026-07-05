@@ -20,6 +20,7 @@ class _StoreOrdersScreenState extends State<StoreOrdersScreen> with SingleTicker
   late final TabController _tabs = TabController(length: 2, vsync: this);
   List<StoreOrder>? _orders;
   List<StoreBooking>? _bookings;
+  bool _loadFailed = false; // load errored with nothing to show → offer Retry, not "no orders"
 
   @override
   void initState() {
@@ -35,12 +36,15 @@ class _StoreOrdersScreenState extends State<StoreOrdersScreen> with SingleTicker
 
   Future<void> _load() async {
     final api = context.read<AstrologerApi>();
+    if (mounted) setState(() => _loadFailed = false);
     try {
       final r = await Future.wait([api.myStoreOrders(), api.myPoojaBookings()]);
       if (!mounted) return;
-      setState(() { _orders = r[0] as List<StoreOrder>; _bookings = r[1] as List<StoreBooking>; });
+      setState(() { _orders = r[0] as List<StoreOrder>; _bookings = r[1] as List<StoreBooking>; _loadFailed = false; });
     } catch (_) {
-      if (mounted) setState(() { _orders ??= []; _bookings ??= []; });
+      // Don't collapse a load failure into an empty "no orders" state — flag it so
+      // the tabs can offer Retry when we have nothing loaded yet.
+      if (mounted) setState(() => _loadFailed = true);
     }
   }
 
@@ -85,7 +89,7 @@ class _StoreOrdersScreenState extends State<StoreOrdersScreen> with SingleTicker
   }
 
   Widget _ordersTab(RgColors c) {
-    if (_orders == null) return const Center(child: CircularProgressIndicator());
+    if (_orders == null) return _loadFailed ? _retry(c) : const Center(child: CircularProgressIndicator());
     if (_orders!.isEmpty) return _empty(c, Icons.receipt_long_outlined, Strings.of(context).noOrdersYet, Strings.of(context).whenSeekersBuyYourProductsThey);
     return RefreshIndicator(
       onRefresh: _load,
@@ -99,7 +103,7 @@ class _StoreOrdersScreenState extends State<StoreOrdersScreen> with SingleTicker
   }
 
   Widget _bookingsTab(RgColors c) {
-    if (_bookings == null) return const Center(child: CircularProgressIndicator());
+    if (_bookings == null) return _loadFailed ? _retry(c) : const Center(child: CircularProgressIndicator());
     if (_bookings!.isEmpty) return _empty(c, Icons.local_fire_department_outlined, Strings.of(context).noBookingsYet, Strings.of(context).paidPoojaBookingsAppearHere);
     return RefreshIndicator(
       onRefresh: _load,
@@ -207,6 +211,26 @@ class _StoreOrdersScreenState extends State<StoreOrdersScreen> with SingleTicker
       ]),
     );
   }
+
+  // Shown when the initial load failed and we have no data yet — Retry, never a
+  // false "no orders" empty state.
+  Widget _retry(RgColors c) => ListView(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 80, 32, 0),
+          child: Column(children: [
+            Icon(Icons.cloud_off_outlined, size: 48, color: c.muted),
+            const SizedBox(height: 12),
+            Text(Strings.of(context).couldNotLoadTapRetry, textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 13)),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: Text(Strings.of(context).retry),
+              style: OutlinedButton.styleFrom(foregroundColor: c.red, side: BorderSide(color: c.red)),
+            ),
+          ]),
+        ),
+      ]);
 
   Widget _empty(RgColors c, IconData icon, String title, String hint) => ListView(children: [
         Padding(

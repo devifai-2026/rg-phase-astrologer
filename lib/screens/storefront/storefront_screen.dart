@@ -33,6 +33,7 @@ class _StorefrontScreenState extends State<StorefrontScreen> with SingleTickerPr
 
   List<StoreProduct>? _products;
   List<PoojaOffering>? _poojas;
+  bool _loadFailed = false; // initial load errored with nothing loaded → offer Retry
   late String _theme;
   bool _savingTheme = false;
 
@@ -51,15 +52,18 @@ class _StorefrontScreenState extends State<StorefrontScreen> with SingleTickerPr
 
   Future<void> _load() async {
     final api = context.read<AstrologerApi>();
+    if (mounted) setState(() => _loadFailed = false);
     try {
       final results = await Future.wait([api.myProducts(), api.myPoojas()]);
       if (!mounted) return;
       setState(() {
         _products = results[0] as List<StoreProduct>;
         _poojas = results[1] as List<PoojaOffering>;
+        _loadFailed = false;
       });
     } catch (_) {
-      if (mounted) setState(() { _products ??= []; _poojas ??= []; });
+      // Flag the failure instead of collapsing to empty "no products" lists.
+      if (mounted) setState(() => _loadFailed = true);
     }
   }
 
@@ -158,6 +162,7 @@ class _StorefrontScreenState extends State<StorefrontScreen> with SingleTickerPr
           // ── Products manage ──
           _ManageList<StoreProduct>(
             items: _products,
+            loadFailed: _loadFailed,
             emptyLabel: Strings.of(context).noProductsYet,
             emptyHint: Strings.of(context).tapListProductToAddYour,
             onRefresh: _load,
@@ -177,6 +182,7 @@ class _StorefrontScreenState extends State<StorefrontScreen> with SingleTickerPr
           // ── Poojas manage ──
           _ManageList<PoojaOffering>(
             items: _poojas,
+            loadFailed: _loadFailed,
             emptyLabel: Strings.of(context).noPoojasYet,
             emptyHint: Strings.of(context).tapListPoojaToAddYour,
             onRefresh: _load,
@@ -360,16 +366,39 @@ class _StoreTab extends StatelessWidget {
 
 class _ManageList<T> extends StatelessWidget {
   final List<T>? items;
+  final bool loadFailed;
   final String emptyLabel;
   final String emptyHint;
   final Future<void> Function() onRefresh;
   final Widget Function(T) itemBuilder;
-  const _ManageList({required this.items, required this.emptyLabel, required this.emptyHint, required this.onRefresh, required this.itemBuilder});
+  const _ManageList({required this.items, this.loadFailed = false, required this.emptyLabel, required this.emptyHint, required this.onRefresh, required this.itemBuilder});
 
   @override
   Widget build(BuildContext context) {
     final c = context.rg;
-    if (items == null) return const Center(child: CircularProgressIndicator());
+    if (items == null) {
+      // Nothing loaded: Retry on failure, else still loading.
+      if (loadFailed) {
+        return ListView(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 80, 32, 0),
+            child: Column(children: [
+              Icon(Icons.cloud_off_outlined, size: 48, color: c.muted),
+              const SizedBox(height: 12),
+              Text(Strings.of(context).couldNotLoadTapRetry, textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 13)),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text(Strings.of(context).retry),
+                style: OutlinedButton.styleFrom(foregroundColor: c.red, side: BorderSide(color: c.red)),
+              ),
+            ]),
+          ),
+        ]);
+      }
+      return const Center(child: CircularProgressIndicator());
+    }
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: items!.isEmpty
