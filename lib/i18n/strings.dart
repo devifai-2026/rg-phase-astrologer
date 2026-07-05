@@ -41,7 +41,7 @@ class Strings {
   /// Tenant brand name, substituted into any `{appName}` placeholder in a string.
   /// Set once at startup from the tenant config (GET /app-config → appName).
   /// Neutral default so a build with no config never shows another tenant's name.
-  static String brandName = 'Astro Partner';
+  static String brandName = 'Astro App';
 
   /// Look up a translated string and substitute the tenant brand into the
   /// `{appName}` placeholder, so localized text shows THIS tenant's name (never

@@ -63,13 +63,14 @@ Future<void> main() async {
   client.langCode = settings.effectiveLangCode;
   settings.onLanguageChanged = (code) => client.langCode = code;
 
-  // Tenant brand name for the app (drives the {appName} placeholder in every
-  // localized string). Fetched from the backend's public app-config; the neutral
-  // compiled default stands in until it arrives. Fire-and-forget — never blocks boot.
-  client.get('/app-config').then((data) {
+  // Tenant brand name (drives the {appName} placeholder + splash/login logo).
+  // AWAIT it (bounded) so the FIRST frame already shows the tenant's brand — not
+  // the neutral default flashing first. On failure we keep the neutral default.
+  try {
+    final data = await client.get('/app-config').timeout(const Duration(seconds: 8));
     final name = (data is Map && data['appName'] is String) ? (data['appName'] as String).trim() : '';
     if (name.isNotEmpty) Strings.brandName = name;
-  }).catchError((_) {});
+  } catch (_) {/* keep neutral default */}
   final api = AstrologerApi(client, tokens);
   final socket = SocketService(tokens);
   final sessionApi = SessionApi(client);
