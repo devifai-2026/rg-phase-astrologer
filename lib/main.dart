@@ -93,9 +93,22 @@ Future<void> main() async {
   socket.onNewNotification = (_) => notifications.load();
 
   // ── Consultation realtime wiring ──
-  // An incoming request rings a full-screen call-style screen (even from the
-  // background, via the deep-link navigator). The seeker is anonymous (alias).
-  socket.onIncomingRequest = (d) => IncomingRing.present(session, d);
+  // An incoming request rings a full-screen call-style screen. When the app is
+  // NOT foreground (backgrounded-in-RAM with a live socket), a pushed Flutter
+  // route is invisible — delegate to the native CallKit screen instead (the
+  // same surface the FCM path raises; showIncoming dedupes by sessionId).
+  socket.onIncomingRequest = (d) {
+    final inForeground = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (inForeground) {
+      IncomingRing.present(session, d);
+    } else {
+      CallKitService.showIncoming({
+        ...d,
+        'serviceType': d['type'],
+        'alias': (d['from'] is Map ? d['from']['alias'] : d['alias'])?.toString() ?? 'Seeker',
+      });
+    }
+  };
   socket.onRequestCancelled = (d) {
     final sid = (d['sessionId'] ?? '').toString();
     if (sid == session.incomingSessionId || sid == session.activeSessionId) { session.clearIncoming(); IncomingRing.dismiss(); }

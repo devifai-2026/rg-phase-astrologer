@@ -169,6 +169,15 @@ class SessionApi {
     return raw.map((e) => ChatMsg.fromJson(Map<String, dynamic>.from(e as Map))).toList();
   }
 
+  /// Same endpoint as [messages] but returns the raw maps — keeps fields the
+  /// ChatMsg model drops (product card, `mine` flag) so the live-chat pane can
+  /// rehydrate history in exactly the shape it renders socket payloads.
+  Future<List<Map<String, dynamic>>> messagesRaw(String sessionId, {int page = 1, int limit = 100}) async {
+    final data = await _c.get('/sessions/$sessionId/messages', query: {'page': page, 'limit': limit});
+    final raw = (data is Map ? (data['items'] as List?) : (data as List?)) ?? [];
+    return raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
   /// The astrologer's session history (GET /sessions), newest first. Each item
   /// carries the anonymous seeker alias, duration, and the astrologer's earning.
   /// Pass [type] (chat|call|video) to filter to a single service.

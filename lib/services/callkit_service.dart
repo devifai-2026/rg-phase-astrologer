@@ -49,6 +49,12 @@ class CallKitService {
   static Future<void> showIncoming(Map<String, dynamic> payload) async {
     final sessionId = (payload['sessionId'] ?? '').toString();
     if (sessionId.isEmpty) return;
+    // The same request can arrive twice (socket event + FCM push) — if this
+    // session's call screen is already ringing, don't raise a duplicate.
+    try {
+      final calls = await FlutterCallkitIncoming.activeCalls();
+      if (calls is List && calls.any((c) => c is Map && c['id']?.toString() == _callId(sessionId))) return;
+    } catch (_) {/* best-effort guard */}
     final type = (payload['serviceType'] ?? payload['type2'] ?? payload['type'] ?? 'chat').toString();
     final alias = (payload['alias'] ?? 'Seeker').toString();
     final isVideo = _isVideo(type);

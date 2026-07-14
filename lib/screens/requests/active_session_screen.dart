@@ -26,7 +26,7 @@ class ActiveSessionScreen extends StatefulWidget {
   State<ActiveSessionScreen> createState() => _ActiveSessionScreenState();
 }
 
-class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureScreenMixin {
+class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureScreenMixin, WidgetsBindingObserver {
   Timer? _timer;
   bool _sending = false;
   final _input = TextEditingController();
@@ -40,6 +40,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final s = context.read<SessionProvider>();
@@ -47,6 +48,9 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
       s.setInSession(true);
       // Record the astrologer's presence in the room (both-joined handshake).
       if (s.activeSessionId != null) socket.joinSession(s.activeSessionId!);
+      // Rehydrate the transcript — this screen may be a resume (app kill /
+      // cold-start accept) where every prior message predates this socket.
+      s.loadMessages(context.read<SessionApi>());
     });
     // React to a session-ended pushed by the server (either side ended).
     context.read<SessionProvider>().addListener(_onSession);
@@ -64,6 +68,22 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
         _timer?.cancel(); // start time locked in — nothing left to poll
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from background: the OS may have dropped the socket, so the
+    // room membership and any messages sent meanwhile are gone. Reconnect,
+    // rejoin, and reload the transcript + authoritative clock (mirrors the
+    // user app's chat screen).
+    if (state == AppLifecycleState.resumed && mounted) {
+      final s = context.read<SessionProvider>();
+      final socket = context.read<SocketService>();
+      socket.connect();
+      if (s.activeSessionId != null) socket.joinSession(s.activeSessionId!);
+      s.loadMessages(context.read<SessionApi>());
+      s.syncStartedAt(context.read<SessionApi>());
+    }
   }
 
   void _onSession() {
@@ -93,6 +113,7 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     try { context.read<SessionProvider>().removeListener(_onSession); } catch (_) {}
     _input.dispose();

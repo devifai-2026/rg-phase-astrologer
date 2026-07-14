@@ -47,9 +47,14 @@ Future<void> _onBackgroundMessage(RemoteMessage message) async {
     return;
   }
 
+  // Hybrid (notification-block) messages are already drawn by the OS in the
+  // background — drawing again here would double-banner. Only draw for
+  // data-only messages.
+  if (message.notification != null) return;
+
   // Draw the notification ourselves since data-only messages have no OS banner.
-  final title = (message.notification?.title ?? data['title'] ?? 'New notification').toString();
-  final body = (message.notification?.body ?? data['body'] ?? '').toString();
+  final title = (data['title'] ?? 'New notification').toString();
+  final body = (data['body'] ?? '').toString();
   if (title.isNotEmpty || body.isNotEmpty) {
     await LocalNotifs.show(title, body, payload: PushService._payloadUri(data));
   }

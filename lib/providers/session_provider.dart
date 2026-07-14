@@ -367,16 +367,46 @@ class SessionProvider extends ChangeNotifier {
   int _elapsedSec = 0;
   int get elapsedSec => _elapsedSec;
 
+  // Device↔server clock offset (serverNow − deviceNow), captured whenever the
+  // server hands us a timestamp pair. Corrects device clock skew so the timer
+  // shows the server's elapsed time exactly (and matches the user app).
+  Duration _clockOffset = Duration.zero;
+
+  /// Adopt a server "now" (ISO). [rtt] — the request round-trip, when known —
+  /// centers the sample so network latency doesn't bias the offset.
+  void _adoptServerNow(String? iso, {Duration rtt = Duration.zero}) {
+    final serverNow = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
+    if (serverNow == null) return;
+    _clockOffset = serverNow.difference(DateTime.now()) + Duration(milliseconds: rtt.inMilliseconds ~/ 2);
+  }
+
+  /// Server-corrected wall clock.
+  DateTime get _nowCorrected => DateTime.now().add(_clockOffset);
+
   void _startTicker() {
-    sessionStartedAt ??= DateTime.now();
+    sessionStartedAt ??= _nowCorrected;
     _ticker?.cancel();
     _tick();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    _scheduleNextTick();
+  }
+
+  // Self-scheduling ticks aligned to the session's second boundary, so the
+  // displayed second flips exactly when the server's does (no ±1s jitter from
+  // an arbitrary Timer.periodic phase).
+  void _scheduleNextTick() {
+    _ticker?.cancel();
+    if (sessionStartedAt == null) return;
+    final elapsedMs = _nowCorrected.difference(sessionStartedAt!).inMilliseconds;
+    final msToBoundary = 1000 - (elapsedMs % 1000);
+    _ticker = Timer(Duration(milliseconds: msToBoundary.clamp(1, 1000)), () {
+      _tick();
+      _scheduleNextTick();
+    });
   }
 
   void _tick() {
     if (sessionStartedAt == null) return;
-    final s = DateTime.now().difference(sessionStartedAt!).inSeconds;
+    final s = _nowCorrected.difference(sessionStartedAt!).inSeconds;
     _elapsedSec = s < 0 ? 0 : s;
     notifyListeners();
   }
@@ -417,8 +447,10 @@ class SessionProvider extends ChangeNotifier {
   /// adopt it anyway (the only session we could be starting).
   void onSessionStarted(Map<String, dynamic> d) {
     if (activeSessionId != null && d['sessionId'] != null && d['sessionId'] != activeSessionId) return;
+    // serverNow pairs with startedAt → clock-offset correction (exact timer).
+    _adoptServerNow(d['serverNow']?.toString());
     final started = d['startedAt']?.toString();
-    sessionStartedAt = started != null ? DateTime.tryParse(started)?.toLocal() : DateTime.now();
+    sessionStartedAt = started != null ? DateTime.tryParse(started)?.toLocal() : _nowCorrected;
     // Astrologer's net per-minute earning for this session (from the server).
     final perMin = (d['astrologerPerMin'] as num?)?.toInt();
     if (perMin != null && perMin > 0) activePerMin = perMin;
@@ -436,7 +468,10 @@ class SessionProvider extends ChangeNotifier {
     final id = activeSessionId;
     if (id == null) return;
     try {
+      final t0 = DateTime.now();
       final detail = await api.detail(id);
+      // Clock-offset sample: serverNow centered on the request midpoint.
+      _adoptServerNow(detail['serverNow']?.toString(), rtt: DateTime.now().difference(t0));
       // Fallback for the per-min earning if the live event was missed: derive
       // the astrologer's net (ratePerMin − adminCutPerMin) from the detail.
       if (activePerMin <= 0) {
@@ -450,7 +485,7 @@ class SessionProvider extends ChangeNotifier {
         // Adopt the SERVER start time (authoritative) even if we had a local
         // one — this corrects any drift from a DateTime.now() fallback.
         sessionStartedAt = DateTime.tryParse(started)?.toLocal();
-        if (_ticker == null) _startTicker(); else _tick();
+        if (_ticker == null) { _startTicker(); } else { _tick(); _scheduleNextTick(); }
         notifyListeners();
       }
     } catch (_) {/* keep waiting for the live event */}
@@ -460,6 +495,35 @@ class SessionProvider extends ChangeNotifier {
     if (m['sessionId'] != null && m['sessionId'] != activeSessionId) return;
     liveMessages.add(m);
     notifyListeners();
+  }
+
+  /// Rehydrate the transcript from the server (GET /sessions/:id/messages) —
+  /// called on open/resume of an ongoing session so history survives an app
+  /// kill or background gap. Clear-then-fill keeps repeated calls idempotent.
+  /// [api] is the astrologer SessionApi.
+  Future<void> loadMessages(dynamic api) async {
+    final id = activeSessionId;
+    if (id == null) return;
+    try {
+      final prior = await api.messagesRaw(id) as List<Map<String, dynamic>>;
+      final mapped = prior.map((m) => <String, dynamic>{
+            'id': (m['id'] ?? m['_id'])?.toString(),
+            'sessionId': id,
+            'kind': (m['kind'] ?? 'user').toString(),
+            // The pane aligns bubbles by sender=='me'; the server marks `mine`
+            // relative to this requester.
+            'sender': m['mine'] == true ? 'me' : m['sender']?.toString(),
+            'message': m['message'],
+            'mediaUrl': m['mediaUrl'],
+            'mediaType': m['mediaType'],
+            'product': m['product'] is Map ? Map<String, dynamic>.from(m['product'] as Map) : null,
+            'timestamp': m['timestamp']?.toString(),
+          }).toList();
+      liveMessages
+        ..clear()
+        ..addAll(mapped);
+      notifyListeners();
+    } catch (_) {/* keep whatever arrived live; history may be unavailable */}
   }
 
   // Terminal summary from the server's session-ended event (duration + earnings)

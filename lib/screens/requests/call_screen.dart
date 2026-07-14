@@ -25,7 +25,7 @@ class CallScreen extends StatefulWidget {
   State<CallScreen> createState() => _CallScreenState();
 }
 
-class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateMixin, SecureScreenMixin {
+class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateMixin, SecureScreenMixin, WidgetsBindingObserver {
   final _agora = AgoraSession();
   bool _mock = false;
   bool _endHandled = false;
@@ -44,6 +44,7 @@ class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1800))
       ..repeat();
     final s = context.read<SessionProvider>();
@@ -69,7 +70,21 @@ class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateM
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Back from background: the OS may have dropped the socket — reconnect,
+    // rejoin the session room, and re-anchor the clock to server truth.
+    if (state == AppLifecycleState.resumed && mounted) {
+      final s = context.read<SessionProvider>();
+      final socket = context.read<SocketService>();
+      socket.connect();
+      if (s.activeSessionId != null) socket.joinSession(s.activeSessionId!);
+      s.syncStartedAt(context.read<SessionApi>());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     _pulse.dispose();
     _agora.errorNotifier.removeListener(_onAgoraError);
@@ -240,29 +255,35 @@ class _CallScreenState extends State<CallScreen> with SingleTickerProviderStateM
             left: 0, right: 0, bottom: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 28, left: 12, right: 12),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _ctrl(Icons.mic, Icons.mic_off, _agora.muted, () async { await _agora.toggleMute(); setState(() {}); }),
-                  const SizedBox(width: 16),
-                  _ctrl(Icons.volume_up, Icons.hearing, !_agora.speakerOn, () async { await _agora.toggleSpeaker(); setState(() {}); }),
-                  if (_isVideo) ...[
-                    const SizedBox(width: 16),
-                    _ctrl(Icons.videocam, Icons.videocam_off, _agora.cameraOff, () async { await _agora.toggleCamera(); setState(() {}); }),
-                    const SizedBox(width: 16),
-                    _ctrl(Icons.cameraswitch, Icons.cameraswitch, false, () => _agora.switchCamera()),
-                  ],
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: _ending ? null : _end,
-                    child: Container(
-                      height: 66, width: 66,
-                      decoration: BoxDecoration(color: _ending ? c.red.withValues(alpha: 0.5) : c.red, shape: BoxShape.circle, boxShadow: [BoxShadow(color: c.red.withValues(alpha: 0.45), blurRadius: 20, spreadRadius: 1)]),
-                      child: _ending
-                          ? const Padding(padding: EdgeInsets.all(21), child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                          : const Icon(Icons.call_end, color: Colors.white, size: 28),
-                    ),
+                // SafeArea already insets for the system nav; keep the extra
+                // lift small. spaceEvenly + FittedBox (instead of fixed 16px
+                // gaps) so all five video controls fit 360dp-wide screens —
+                // the end button used to clip off-screen.
+                padding: const EdgeInsets.only(bottom: 12, left: 12, right: 12),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width - 24,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                      _ctrl(Icons.mic, Icons.mic_off, _agora.muted, () async { await _agora.toggleMute(); setState(() {}); }),
+                      _ctrl(Icons.volume_up, Icons.hearing, !_agora.speakerOn, () async { await _agora.toggleSpeaker(); setState(() {}); }),
+                      if (_isVideo) ...[
+                        _ctrl(Icons.videocam, Icons.videocam_off, _agora.cameraOff, () async { await _agora.toggleCamera(); setState(() {}); }),
+                        _ctrl(Icons.cameraswitch, Icons.cameraswitch, false, () => _agora.switchCamera()),
+                      ],
+                      GestureDetector(
+                        onTap: _ending ? null : _end,
+                        child: Container(
+                          height: 66, width: 66,
+                          decoration: BoxDecoration(color: _ending ? c.red.withValues(alpha: 0.5) : c.red, shape: BoxShape.circle, boxShadow: [BoxShadow(color: c.red.withValues(alpha: 0.45), blurRadius: 20, spreadRadius: 1)]),
+                          child: _ending
+                              ? const Padding(padding: EdgeInsets.all(21), child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                              : const Icon(Icons.call_end, color: Colors.white, size: 28),
+                        ),
+                      ),
+                    ]),
                   ),
-                ]),
+                ),
               ),
             ),
           ),
