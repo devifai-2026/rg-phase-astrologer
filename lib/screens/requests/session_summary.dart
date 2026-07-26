@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../i18n/strings.dart';
 import '../../theme/rg_colors.dart';
+import '../../services/astro_deep_link.dart';
 import '../feedback/service_feedback_sheet.dart';
 
 /// Astrologer end-of-session summary popup: duration + earnings for THIS
@@ -18,16 +19,19 @@ Future<void> showAstroSessionSummary(BuildContext context, Map<String, dynamic> 
   final sessionId = (summary['sessionId'] ?? '').toString();
   final type = (summary['type'] ?? 'chat').toString();
 
-  // Capture the ROOT navigator BEFORE the dialog runs. The feedback sheet below
-  // is presented AFTER the summary dialog closes, and by then the `context` we
-  // were handed can belong to a route that has already been popped (the chat
-  // screen pops itself before calling us). Presenting a modal on that dead
-  // context silently produced a sheet on a defunct route — which is why the
-  // astrologer saw a stunted sheet with no Submit button.
-  final rootNav = Navigator.of(context, rootNavigator: true);
+  // Present BOTH modals through the app-wide navigator key, never through the
+  // `context` we were handed. The chat screen pops itself before calling us, so
+  // that context can already belong to a dead route: presenting the summary on
+  // it worked by luck, and presenting the feedback sheet on it afterwards gave a
+  // sheet mounted on a defunct route (the "only Skip, no Submit" report).
+  // Deriving the navigator from the same dead context was no better — it
+  // reported `mounted == false` and the sheet was skipped entirely. The global
+  // key is the only reference that outlives the route being popped.
+  final nav = AstroDeepLink.navigatorKey.currentState;
+  final dialogCtx = nav?.context ?? context;
 
   await showGeneralDialog(
-    context: context,
+    context: dialogCtx,
     barrierDismissible: true,
     barrierLabel: 'Session complete',
     barrierColor: Colors.black.withValues(alpha: 0.62),
@@ -60,11 +64,14 @@ Future<void> showAstroSessionSummary(BuildContext context, Map<String, dynamic> 
   );
 
   // After the summary card is dismissed, offer the skippable feedback sheet for
-  // this delivered service. Presented on the ROOT navigator's live context (not
-  // the possibly-dead `context` we were handed) so the sheet always mounts on a
-  // surviving route with its full height — Skip AND Submit both visible.
-  if (sessionId.isNotEmpty && rootNav.mounted) {
-    await ServiceFeedbackSheet.show(rootNav.context, kind: 'session', sourceId: sessionId, serviceType: type);
+  // this delivered service, on the same always-live navigator context so it
+  // mounts at full height — Skip AND Submit both visible.
+  // Read AFTER the await, so this is a freshly-resolved live context rather than
+  // one captured before the gap — the lint's concern does not apply.
+  final sheetCtx = AstroDeepLink.navigatorKey.currentContext;
+  if (sessionId.isNotEmpty && sheetCtx != null) {
+    // ignore: use_build_context_synchronously
+    await ServiceFeedbackSheet.show(sheetCtx, kind: 'session', sourceId: sessionId, serviceType: type);
   }
 }
 

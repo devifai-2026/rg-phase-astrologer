@@ -84,6 +84,8 @@ dependencies:
   # Wired per-screen via SecureScreenMixin (lib/widgets/secure_screen.dart).
   no_screenshot: ^0.3.0
   font_awesome_flutter: ^11.0.0
+  flutter_image_compress: ^2.5.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

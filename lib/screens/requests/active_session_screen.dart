@@ -184,10 +184,12 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
     final s = Strings.of(context);
     final id = session.activeSessionId;
     if (id == null || _sending) return;
-    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1280, imageQuality: 85);
+    // No quality/size hints — unreliable across formats (see ImagePrep).
+    final x = await ImagePicker().pickImage(source: ImageSource.gallery, requestFullMetadata: false);
     if (x == null) return;
     setState(() => _sending = true);
     try {
+      // uploadImage normalises to a compact JPEG for every caller — see there.
       final url = await api.uploadImage(File(x.path));
       socket.sendMessage(id, mediaUrl: url, mediaType: 'image');
       session.addLiveMessage({'sessionId': id, 'kind': 'user', 'sender': 'me', 'mediaUrl': url, 'timestamp': DateTime.now().toIso8601String()});
@@ -382,7 +384,46 @@ class _ChatBody extends StatelessWidget {
             child: hasImage
                 ? GestureDetector(
                     onTap: () => ImageViewer.open(context, mediaUrl),
-                    child: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(mediaUrl, width: 200, height: 200, fit: BoxFit.cover)),
+                    // loadingBuilder + errorBuilder are NOT optional here. Without
+                    // them a slow or failed fetch painted nothing at all, so a
+                    // photo the seeker had definitely sent showed as a blank
+                    // coloured square with no spinner and no way to tell whether
+                    // it was still loading or broken.
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        mediaUrl,
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) => progress == null
+                            ? child
+                            : Container(
+                                width: 200,
+                                height: 200,
+                                color: c.ground,
+                                alignment: Alignment.center,
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: c.muted,
+                                    value: progress.expectedTotalBytes != null
+                                        ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 200,
+                          height: 200,
+                          color: c.ground,
+                          alignment: Alignment.center,
+                          child: Icon(Icons.broken_image_outlined, color: c.muted, size: 28),
+                        ),
+                      ),
+                    ),
                   )
                 : Text((m['message'] ?? '').toString(), style: TextStyle(color: mine ? Colors.white : c.ink, fontSize: 14, height: 1.35)),
           ),

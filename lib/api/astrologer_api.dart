@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import '../models/ai_models.dart';
+import '../utils/image_prep.dart';
 import '../models/recap_models.dart';
 import 'api_client.dart';
 import 'token_store.dart';
@@ -329,10 +330,17 @@ class AstrologerApi {
 
   /// Upload a local image; returns the hosted URL. Reuses the user upload
   /// endpoint (multipart field "image", ImageBB-hosted). Requires a session.
+  ///
+  /// Normalises to a compact JPEG first, for EVERY caller (chat photo, product,
+  /// pooja, avatar, cover). `ImagePicker.imageQuality` is silently ignored for
+  /// PNG — and Android screenshots are PNG — so callers that passed a quality
+  /// hint were still uploading full-size files. Doing it here means no upload
+  /// path can regress by forgetting to convert.
   Future<String> uploadImage(File file) async {
-    final filename = file.path.split(Platform.pathSeparator).last;
+    final prepared = await ImagePrep.toUploadableJpeg(file);
+    final filename = prepared.path.split(Platform.pathSeparator).last;
     final form = FormData.fromMap({
-      'image': await MultipartFile.fromFile(file.path, filename: filename),
+      'image': await MultipartFile.fromFile(prepared.path, filename: filename),
     });
     final data = await _c.post('/users/upload', body: form);
     if (data is Map && (data['url'] != null || data['image'] != null)) {
