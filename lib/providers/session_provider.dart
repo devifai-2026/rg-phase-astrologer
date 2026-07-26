@@ -596,10 +596,28 @@ class SessionProvider extends ChangeNotifier {
   // — drives the astrologer's end-of-session popup. Cleared when consumed.
   Map<String, dynamic>? endSummary;
 
+  /// Session ids we have already torn down. The backend emits `session-ended`
+  /// TWICE — once to the session room (`emit.toSession`) and once to the
+  /// astrologer's personal room (`emit.toUser`) — so this handler always runs
+  /// twice for one real end. Without this latch the second delivery re-set
+  /// `endSummary` AFTER the screen had consumed it, and because the screen's own
+  /// `_endHandled` flag was already true it refused to act again: the astrologer
+  /// sat on the chat screen while the seeker had already left.
+  final Set<String> _endedSessionIds = {};
+
   /// Server says the session ended (by either side). Capture the summary so the
   /// active screen can show it, then clear the live state.
   void onSessionEnded(Map<String, dynamic> d) {
     if (activeSessionId != null && d['sessionId'] != null && d['sessionId'] != activeSessionId) return;
+    // Ignore the duplicate delivery of an end we have already processed.
+    final endedId = d['sessionId']?.toString();
+    if (endedId != null && endedId.isNotEmpty) {
+      if (!_endedSessionIds.add(endedId)) return;
+      // Keep the set from growing without bound over a long-lived session.
+      if (_endedSessionIds.length > 20) {
+        _endedSessionIds.remove(_endedSessionIds.first);
+      }
+    }
     endSummary = Map<String, dynamic>.from(d);
     activeSessionId = null;
     activeKind = null;

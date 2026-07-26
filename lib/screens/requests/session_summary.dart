@@ -18,6 +18,14 @@ Future<void> showAstroSessionSummary(BuildContext context, Map<String, dynamic> 
   final sessionId = (summary['sessionId'] ?? '').toString();
   final type = (summary['type'] ?? 'chat').toString();
 
+  // Capture the ROOT navigator BEFORE the dialog runs. The feedback sheet below
+  // is presented AFTER the summary dialog closes, and by then the `context` we
+  // were handed can belong to a route that has already been popped (the chat
+  // screen pops itself before calling us). Presenting a modal on that dead
+  // context silently produced a sheet on a defunct route — which is why the
+  // astrologer saw a stunted sheet with no Submit button.
+  final rootNav = Navigator.of(context, rootNavigator: true);
+
   await showGeneralDialog(
     context: context,
     barrierDismissible: true,
@@ -52,10 +60,11 @@ Future<void> showAstroSessionSummary(BuildContext context, Map<String, dynamic> 
   );
 
   // After the summary card is dismissed, offer the skippable feedback sheet for
-  // this delivered service. Guard context validity (the dialog may have popped
-  // the route on its way out).
-  if (sessionId.isNotEmpty && context.mounted) {
-    await ServiceFeedbackSheet.show(context, kind: 'session', sourceId: sessionId, serviceType: type);
+  // this delivered service. Presented on the ROOT navigator's live context (not
+  // the possibly-dead `context` we were handed) so the sheet always mounts on a
+  // surviving route with its full height — Skip AND Submit both visible.
+  if (sessionId.isNotEmpty && rootNav.mounted) {
+    await ServiceFeedbackSheet.show(rootNav.context, kind: 'session', sourceId: sessionId, serviceType: type);
   }
 }
 
