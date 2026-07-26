@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../api/api_config.dart';
 import '../api/astrologer_api.dart';
 import '../api/session_api.dart';
+import '../providers/session_provider.dart';
+import '../screens/requests/incoming_ring.dart';
 import 'astro_deep_link.dart';
 import 'callkit_service.dart';
 import 'delivery_ack.dart';
@@ -77,6 +79,12 @@ class PushService {
   final _fcm = FirebaseMessaging.instance;
   AstrologerApi? _api;
   SessionApi? _sessionApi; // for REST reject from the native call screen
+  SessionProvider? _session; // to clear in-app ring state on a CallKit decline
+  // Called when a silent presence_ping lands in the FOREGROUND, so the app can
+  // rebuild a dead socket. Deliberately not wired for the background isolate: it
+  // cannot reach the UI isolate's socket, and connecting from a soon-to-be-frozen
+  // isolate would take a lease and then die — exactly the flapping we removed.
+  void Function()? _onPresencePing;
   String? _lastToken;
   bool _listenersReady = false;
 
@@ -84,9 +92,18 @@ class PushService {
 
   /// Wire the authenticated APIs used for token registration, click attribution,
   /// and rejecting a session from the native call screen. Safe before/after init.
-  void attach(AstrologerApi api, {SessionApi? sessionApi}) {
+  void attach(
+    AstrologerApi api, {
+    SessionApi? sessionApi,
+    SessionProvider? session,
+    void Function()? onPresencePing,
+  }) {
     _api = api;
     if (sessionApi != null) _sessionApi = sessionApi;
+    // Needed so a CallKit decline can also clear the in-app ring state, not just
+    // the native surface.
+    if (session != null) _session = session;
+    if (onPresencePing != null) _onPresencePing = onPresencePing;
   }
 
   /// Register FG/BG/tap listeners. Safe to call once at startup, before login.
@@ -116,6 +133,12 @@ class PushService {
       onDecline: (sessionId) {
         _sessionApi?.reject(sessionId).catchError((_) {});
         CallKitService.dismiss(sessionId);
+        // The in-app full-screen ring can be up at the SAME time as the native
+        // CallKit screen (socket + FCM both raise a surface). Dismissing only
+        // CallKit left the Flutter route on screen still counting down, offering
+        // Accept/Decline on a session the server already marked rejected.
+        IncomingRing.dismiss(sessionId);
+        _session?.clearIncoming();
       },
     );
 
@@ -138,6 +161,12 @@ class PushService {
       // this is just belt-and-suspenders for the probe/heartbeat race window.
       if ((msg.data['type'] ?? '').toString() == 'presence_ping') {
         PresenceAck.send();
+        // The ping's REAL job is to get a socket back up — the server only probes
+        // astrologers it believes are unreachable. ACKing alone left an app that
+        // was open-but-socket-dead invisible to seekers until the astrologer
+        // noticed and re-toggled. Nudging is idempotent and a no-op when the link
+        // is already healthy.
+        try { _onPresencePing?.call(); } catch (_) {}
         return;
       }
       _recordDelivered(msg.data['broadcastId']?.toString());

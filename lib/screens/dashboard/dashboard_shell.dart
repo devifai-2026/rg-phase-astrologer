@@ -72,23 +72,12 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
     });
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // CRITICAL for presence: when the app returns to the foreground, the OS may
-    // have killed the websocket while backgrounded. Reconnect (idempotent) so the
-    // backend re-marks the astrologer online (socketCount > 0) — otherwise the
-    // astrologer's app shows "online" locally but every user sees them OFFLINE
-    // because there's no live socket. The onConnected hook then re-asserts intent.
-    if (state == AppLifecycleState.resumed) {
-      final socket = context.read<SocketService>();
-      socket.connect();
-      // Belt-and-braces: if the socket is already connected (no reconnect event
-      // will fire), re-assert intent + re-pull presence directly.
-      if (socket.connected && context.read<SessionProvider>().isOnline) {
-        socket.setOnline(true);
-      }
-    }
-  }
+  // NOTE: no didChangeAppLifecycleState here on purpose. AppLifecycleBinder is
+  // the single owner of resume/pause for the link (it nudges the socket and
+  // reloads tokens). This class used to ALSO call socket.connect() on resume,
+  // racing the binder's nudge() and producing two competing attempts. Intent
+  // re-assertion now lives in SocketService.onConnect, so it is covered on every
+  // reconnect rather than only while this screen is mounted.
 
   /// Keep the availability toggle mirrored to the SERVER's true presence in
   /// every scenario: live `my-presence` events (manual toggle, auto-busy on

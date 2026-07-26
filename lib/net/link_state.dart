@@ -53,14 +53,28 @@ enum LinkFatalReason { authRejected, allHostsExhausted, unknown }
 class LinkTimings {
   /// Shorter than socket.io's internal 20s connect timeout on purpose: we want to
   /// own the retry decision rather than wait for the library.
+  ///
+  /// The FIRST couple of attempts get a tight deadline: on a healthy network the
+  /// websocket handshake is well under a second, so 8s of waiting on a stalled
+  /// attempt was pure dead time in front of the astrologer. Later attempts relax,
+  /// because by then the network is genuinely poor and hammering it won't help.
+  static const attemptTimeoutFast = Duration(seconds: 3);
   static const attemptTimeout = Duration(seconds: 8);
+  static const fastAttempts = 2;
+
+  /// Deadline for attempt number [attempt] (0-based).
+  static Duration attemptTimeoutFor(int attempt) =>
+      attempt < fastAttempts ? attemptTimeoutFast : attemptTimeout;
+
   static const refreshTimeout = Duration(seconds: 10);
 
-  /// Exponential backoff with full jitter. The old 500ms→3s cap hammered the
-  /// radio ~20x/minute forever on a dead network — a real battery complaint and a
-  /// self-inflicted flood during an outage.
-  static const backoffBase = Duration(milliseconds: 800);
-  static const backoffMax = Duration(seconds: 20);
+  /// Exponential backoff with full jitter. Starts much tighter than before
+  /// (250ms vs 800ms) and caps at 8s rather than 20s: a transient blip — the
+  /// common case — now recovers in well under a second instead of parking the
+  /// astrologer behind a 20s wait, while a genuinely dead network still backs off
+  /// enough to spare the radio.
+  static const backoffBase = Duration(milliseconds: 250);
+  static const backoffMax = Duration(seconds: 8);
   static const backoffJitter = 0.3;
 
   /// Attempts on one host before rotating to the next candidate.

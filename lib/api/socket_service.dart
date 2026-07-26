@@ -70,6 +70,17 @@ class SocketService extends ChangeNotifier {
   int? _pendingBeat;
   int _missedBeats = 0;
   bool _stopped = false;   // explicit stop (logout / background) suppresses retries
+  int _socketSeq = 0;      // bumps per attempt so the io() Manager cache can't hit
+
+  /// The astrologer's availability INTENT, owned by the transport rather than by
+  /// whichever screen happens to be mounted. `set-online` used to be dropped
+  /// silently whenever there was no live socket (and socket.io's own sendBuffer
+  /// is discarded by the next teardown), so a toggle could be lost with no error
+  /// and no retry. Holding intent here lets every successful connect re-assert
+  /// it automatically — which is also what makes an astrologer come back online
+  /// after a reconnect without touching the toggle.
+  bool? _desiredOnline;
+  bool? get desiredOnline => _desiredOnline;
 
   // Server → client callbacks the rest of the app can hook.
   void Function(Map<String, dynamic>)? onIncomingRequest;
@@ -193,21 +204,24 @@ class SocketService extends ChangeNotifier {
     // no-op the way the old connect() did — go through the auth path instead.
     if (token == null || token.isEmpty) { _authenticate(); return; }
 
-    if (_socket != null) {
-      _socket!.auth = _authPayload(token);
-      if (!_socket!.connected) {
-        _emitState(LinkState.connecting);
-        _armAttemptDeadline();
-        _socket!.connect();
-      }
-      return;
-    }
+    // NEVER reuse a socket. socket_io_client caches the Manager+Socket per URL,
+    // and a reused Socket ignores the opts auth (auth is only read in the
+    // constructor) — so a reused instance could carry a stale token AND a
+    // half-dead engine that nothing recovers, which is why the app previously
+    // needed a process restart to reconnect. Tear down and build fresh every
+    // attempt; `forceNew` + a per-attempt query param defeat the Manager cache.
+    _teardownSocket();
 
     _emitState(LinkState.connecting);
+    _socketSeq++;
 
     _socket = io.io(
       _resolver.socketUrl,
       io.OptionBuilder()
+          // Distinct per attempt so the library cannot hand back a cached
+          // Manager keyed on the URL. Harmless to the server.
+          .setQuery({'a': '$_socketSeq'})
+          .enableForceNew()
           // WEBSOCKET ONLY. On Android, socket_io_client's XHR-polling transport
           // is unreliable — the long-poll GET hangs and the engine fires a
           // `timeout` (the multi-minute "Connecting…" spinner with NO backend
@@ -242,20 +256,31 @@ class SocketService extends ChangeNotifier {
       _emitState(LinkState.connected, clearNextAttempt: true, clearFatal: true);
       _resolver.markHealthy();
       _startHeartbeat();
+      // Re-assert availability intent on EVERY successful connect. This is what
+      // makes the astrologer come back online by themselves after a reconnect,
+      // a network flip, or a session-end socket rebuild — no screen involved and
+      // no user action. It also replays a toggle that happened while offline.
+      final want = _desiredOnline;
+      if (want != null) {
+        s.emitWithAck('set-online', {'online': want}, ack: (_) {});
+      }
       onConnected?.call();
     });
 
     s.onDisconnect((_) {
       _stopHeartbeat();
       if (_stopped) { _emitState(LinkState.stopped); return; }
-      // The grace window only debounces the UI badge; the machine starts
-      // reconnecting immediately. Previously the grace was the ONLY thing that
-      // set disconnected state, so a socket that died without re-emitting
-      // `disconnect` could leave the UI claiming "connected".
+      // No grace timer here. It used to guard on `state == connected`, but
+      // _scheduleBackoff below changes state SYNCHRONOUSLY, so by the time the
+      // timer fired the guard could never be true — it was dead code pretending
+      // to debounce. The badge flap it was meant to prevent is now debounced in
+      // SessionProvider.setSocketLive, which is the thing that actually drives
+      // the UI. Reconnect starts immediately, and with the tighter backoff a
+      // blip is usually invisible anyway.
       _graceTimer?.cancel();
-      _graceTimer = Timer(LinkTimings.disconnectGrace, () {
-        if (_status.state == LinkState.connected) _emitState(LinkState.connecting);
-      });
+      // A drop is the single most likely moment for a stale socket to linger, so
+      // reset for a genuinely fresh attempt.
+      _attempt = 0;
       _scheduleBackoff('disconnected');
     });
 
@@ -292,10 +317,30 @@ class SocketService extends ChangeNotifier {
   }
 
   /// Tell the backend the astrologer's online/offline choice.
-  void setOnline(bool online) {
-    if (_socket == null) return;
-    _socket!.emit('set-online', {'online': online});
+  ///
+  /// Records the intent FIRST, so it survives a dead/absent socket and is
+  /// re-asserted automatically on the next successful connect. When there is no
+  /// live socket we deliberately do NOT emit — socket.io would buffer into
+  /// `sendBuffer`, which the next teardown throws away, giving the caller a false
+  /// sense that the toggle landed. We kick a connect attempt instead.
+  ///
+  /// [ack] reports `{ ok, reason? }`; `reason: 'no_socket'` means intent was
+  /// stored and will be flushed on connect, `'in_consultation'` is the server
+  /// refusing to go offline mid-session.
+  void setOnline(bool online, {void Function(Map<String, dynamic>)? ack}) {
+    _desiredOnline = online;
+    final s = _socket;
+    if (s == null || !s.connected) {
+      ack?.call({'ok': false, 'reason': 'no_socket'});
+      if (!_stopped) nudge(); // get a link up; onConnect flushes the intent
+      return;
+    }
+    s.emitWithAck('set-online', {'online': online}, ack: (resp) => ack?.call(_map(resp)));
   }
+
+  /// Adopt the server's stored availability intent WITHOUT emitting (used at
+  /// startup, where the profile is the authority and re-sending would be noise).
+  void seedIntent(bool online) => _desiredOnline = online;
 
   /// Start a break of [minutes] (shown busy to seekers) or end it ([minutes]<=0).
   /// The ack reports { ok, reason?, breakUntil? } — `reason: 'in_consultation'`
@@ -311,7 +356,10 @@ class SocketService extends ChangeNotifier {
   /// nothing else would ever fire.
   void _armAttemptDeadline() {
     _attemptTimer?.cancel();
-    _attemptTimer = Timer(LinkTimings.attemptTimeout, () {
+    // Tight deadline for the first attempts (see LinkTimings.attemptTimeoutFor):
+    // a healthy handshake is sub-second, so waiting 8s on a stalled one just made
+    // the astrologer stare at a spinner.
+    _attemptTimer = Timer(LinkTimings.attemptTimeoutFor(_attempt), () {
       if (_status.state != LinkState.connecting) return;
       _teardownSocket();
       _scheduleBackoff('timeout');
@@ -489,6 +537,29 @@ class SocketService extends ChangeNotifier {
 
   /// Legacy alias (logout path).
   void disconnect() => stop(reason: 'logout');
+
+  /// Full reset of the link — the in-app equivalent of force-quitting the app.
+  ///
+  /// `fatal` used to be terminal, so the only way back was killing the process.
+  /// This discards the socket (and with it any cached Manager), clears every
+  /// budget/latch, re-reads the tokens from disk in case another isolate rotated
+  /// them, and starts a clean attempt sequence. Availability intent is preserved
+  /// so a reset can't accidentally take the astrologer offline.
+  Future<void> hardReset({String reason = 'manual'}) async {
+    _backoffTimer?.cancel();
+    _attemptTimer?.cancel();
+    _graceTimer?.cancel();
+    _teardownSocket();
+    _stopped = false;
+    _attempt = 0;
+    _totalAttempts = 0;
+    _missedBeats = 0;
+    _pendingBeat = null;
+    _socketSeq++;
+    _emitState(LinkState.connecting, clearNextAttempt: true, clearFatal: true);
+    try { await _tokens.reloadFromDisk(); } catch (_) {/* keep whatever we have */}
+    await _authenticate();
+  }
 
   /// Report no network so we stop burning retries and show the right message.
   void setNetworkUnavailable(bool offline) {

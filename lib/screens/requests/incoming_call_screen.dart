@@ -120,7 +120,12 @@ class _IncomingCallScreenState extends State<IncomingCallScreen> with SingleTick
   }
 
   void _dismiss({bool missed = false}) {
+    final sid = context.read<SessionProvider>().incomingSessionId;
     context.read<SessionProvider>().clearIncoming();
+    // Also tear down the NATIVE surface. The two can be up together, and the
+    // ring-window timeout path used to leave CallKit running to its own timeout —
+    // drawing a "missed call" notification for a session already handled here.
+    if (sid != null && sid.isNotEmpty) CallKitService.dismiss(sid);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(missed ? Strings.of(context).requestMissed : Strings.of(context).requestDeclined)),

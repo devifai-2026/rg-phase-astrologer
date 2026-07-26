@@ -24,6 +24,10 @@ class ServiceFeedbackSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      // Without this the sheet extends UNDER the system navigation bar, so the
+      // pinned Skip/Submit row sits behind the gesture pill — invisible and
+      // untappable, which reads as "there is no Submit button, only Skip".
+      useSafeArea: true,
       builder: (_) => ServiceFeedbackSheet(kind: kind, sourceId: sourceId, serviceType: serviceType),
     );
   }
@@ -78,8 +82,11 @@ class _ServiceFeedbackSheetState extends State<ServiceFeedbackSheet> {
     // the Skip/Submit row off the bottom on smaller devices / large font scale →
     // "no submit button"). The rating fields scroll; the actions stay pinned.
     final maxH = MediaQuery.of(context).size.height * 0.9;
+    // Gesture-nav inset. When the keyboard is up, viewInsets already covers the
+    // bottom, so take the larger of the two rather than stacking them.
+    final navInset = MediaQuery.of(context).viewPadding.bottom;
     return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
+      padding: EdgeInsets.only(bottom: bottomInset > navInset ? bottomInset : navInset),
       child: Container(
         constraints: BoxConstraints(maxHeight: maxH),
         decoration: BoxDecoration(

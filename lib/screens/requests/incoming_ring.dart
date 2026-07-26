@@ -12,6 +12,8 @@ import 'incoming_call_screen.dart';
 /// tree (e.g. a notification tap handled in the headless isolate / on resume).
 class IncomingRing {
   static bool _showing = false;
+  // Which session the visible ring belongs to, so dismiss() can't pop another.
+  static String? _showingSessionId;
 
   static ServiceKind _kind(String? type) => switch (type) {
         'call' => ServiceKind.call,
@@ -40,17 +42,31 @@ class IncomingRing {
     final nav = AstroDeepLink.navigatorKey.currentState;
     if (nav == null || _showing) return;
     _showing = true;
+    _showingSessionId = sessionId;
     nav.push(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => IncomingCallScreen(kind: _kind(type)),
-    )).whenComplete(() => _showing = false);
+    )).whenComplete(() {
+      // The route is the single source of truth for the latch: whatever removes
+      // it (our pop, a system back, an accept's pushReplacement) clears here.
+      _showing = false;
+      _showingSessionId = null;
+    });
   }
 
-  /// Dismiss the ring screen (cancelled / expired). Pops it if it's on top.
-  static void dismiss() {
+  /// Dismiss the ring screen (declined / cancelled / expired).
+  ///
+  /// Pass the sessionId whenever it is known: a bare pop can otherwise remove
+  /// whatever happens to be on top — a DIFFERENT session's ring, or an unrelated
+  /// route pushed above it. Mismatched ids are ignored.
+  static void dismiss([String? sessionId]) {
     if (!_showing) return;
+    if (sessionId != null && _showingSessionId != null && sessionId != _showingSessionId) return;
     final nav = AstroDeepLink.navigatorKey.currentState;
-    nav?.maybePop();
-    _showing = false;
+    if (nav == null) return;
+    // Do NOT clear the latch here. maybePop() can be refused (a PopScope guard),
+    // and clearing it anyway desynced the state so the next present() pushed a
+    // duplicate ring. The route's whenComplete above is what clears it.
+    nav.maybePop();
   }
 }

@@ -94,8 +94,20 @@ Future<void> main() async {
   final panchangApi = PanchangApi(client);
   // Give push the authenticated APIs: token registration + tap attribution, and
   // SessionApi so the native call screen can reject a request over REST.
-  PushService.instance.attach(api, sessionApi: sessionApi);
   final session = SessionProvider();
+  // `session` too, so a decline taken on the NATIVE CallKit screen also clears
+  // the in-app ring state (otherwise the Flutter ring stayed up on a session the
+  // server had already rejected).
+  PushService.instance.attach(
+    api,
+    sessionApi: sessionApi,
+    session: session,
+    // A silent presence_ping means the server thinks we're unreachable. If the
+    // app is in the foreground with a dead socket, rebuild it instead of merely
+    // ACKing — otherwise the astrologer stays invisible to seekers until they
+    // notice and re-toggle, which is the impression we most need to avoid.
+    onPresencePing: () => socket.nudge(),
+  );
   // Notification inbox (bell badge + Notifications screen), backed by the
   // /notifications API. A live 'new-notification' socket event (e.g. an admin
   // approving a storefront item) refreshes it so the badge updates instantly.
@@ -112,7 +124,14 @@ Future<void> main() async {
 
   // ONE lifecycle observer for the link (replaces per-screen observers that each
   // fired their own connect on resume and handled no other state).
-  AppLifecycleBinder(socket: socket, tokens: tokens, resolver: hostResolver).attach();
+  // Keep a reference (it used to be a throwaway expression, so nothing could
+  // ever set hold-open) and derive hold-open from live session state: while a
+  // consultation is running OR a request is ringing, backgrounding must NOT tear
+  // the socket down — that dropped the astrologer mid-consultation and made them
+  // look offline to the seeker who was still being billed.
+  final lifecycle = AppLifecycleBinder(socket: socket, tokens: tokens, resolver: hostResolver);
+  lifecycle.shouldHoldOpen = () => session.inSession || session.incomingSessionId != null;
+  lifecycle.attach();
 
   // ── Consultation realtime wiring ──
   // An incoming request rings a full-screen call-style screen. When the app is
@@ -149,28 +168,15 @@ Future<void> main() async {
   socket.onGiftReceived = (d) => session.addLiveMessage({...d, 'kind': 'gift'});
   socket.onSessionEnded = (d) {
     session.onSessionEnded(d);
-    // Auto re-assert availability whenever ANY session (chat/call/video) ends.
-    // The backend already recomputes + broadcasts presence on end, but this is a
-    // guaranteed client-side nudge from the astrologer who is provably online
-    // right now: it forces a fresh `set-online` → recompute → astrologer-status
-    // broadcast, so every user's list/detail flips the astrologer back to online
-    // immediately (the bug where the seeker's screen stayed 'offline' after a
-    // call). No-op when the astrologer's intent is offline.
-    //
-    // VIDEO end specifically: tearing down the Agora video engine is heavy and
-    // can briefly stall the socket, so a single immediate emit may land while the
-    // presence store still reads the call as live (→ user sees 'offline'). Fire
-    // the re-assert NOW and again after the teardown settles, over BOTH the
-    // socket (fast path) and the durable HTTP toggle (survives a socket blip).
-    if (session.isOnline) {
-      void reassert() {
-        socket.setOnline(true);
-        api.setOnline(true).catchError((_) {}); // durable HTTP fallback
-      }
-      reassert();
-      Future.delayed(const Duration(milliseconds: 1200), () { if (session.isOnline) reassert(); });
-      Future.delayed(const Duration(milliseconds: 3000), () { if (session.isOnline) reassert(); });
-    }
+    // Re-assert availability once when a session ends. Previously this fired
+    // three times (0/1.2s/3s) over BOTH the socket and HTTP, to paper over a
+    // server bug where the post-session recompute could derive "offline" while
+    // Agora teardown briefly stalled the socket. That is now fixed properly
+    // server-side (a short post-session grace on the presence lease), and
+    // SocketService re-asserts intent on every reconnect by itself — so one
+    // emit is enough. It is also cheap and harmless if the server already
+    // recomputed. No-op when the astrologer's intent is offline.
+    if (session.isOnline) socket.setOnline(true);
   };
   // Session truly dead (refresh failed) → wipe persisted tokens and drop the
   // socket so the next launch / next screen cleanly falls back to OTP login

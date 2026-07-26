@@ -114,10 +114,27 @@ class SessionProvider extends ChangeNotifier {
 
   /// Fed from the SocketService connect/disconnect state so the displayed status
   /// can't claim "Online" while the socket is dead.
+  Timer? _socketLiveDebounce;
+
   void setSocketLive(bool live) {
+    _socketLiveDebounce?.cancel();
     if (live == _socketLive) return;
-    _socketLive = live;
-    notifyListeners();
+    // Going live is applied IMMEDIATELY — the astrologer should see "Online" the
+    // instant the link is up. Going dark is debounced, because a reconnect
+    // usually completes within a second and flashing "Connecting…" for every
+    // blip is what made the status feel unreliable. (This replaces the dead grace
+    // timer that used to live in SocketService.onDisconnect.)
+    if (live) {
+      _socketLive = true;
+      notifyListeners();
+      return;
+    }
+    _socketLiveDebounce = Timer(const Duration(milliseconds: 2500), () {
+      if (_socketLive) {
+        _socketLive = false;
+        notifyListeners();
+      }
+    });
   }
 
   bool _profileCompleted = false;
