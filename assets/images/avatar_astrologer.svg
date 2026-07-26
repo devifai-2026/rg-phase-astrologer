@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Astrologer (self-view) avatar for the video-call onboarding mock. Bundled,
+       not fetched: onboarding runs on first login when connectivity is worst. -->
+  <defs>
+    <linearGradient id="bgA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3F3352"/>
+      <stop offset="100%" stop-color="#241C33"/>
+    </linearGradient>
+    <clipPath id="clipA"><rect width="200" height="200"/></clipPath>
+  </defs>
+  <g clip-path="url(#clipA)">
+    <rect width="200" height="200" fill="url(#bgA)"/>
+    <!-- shoulders / shawl -->
+    <path d="M100 128c-34 0-62 22-68 52-1 6 3 12 9 12h118c6 0 10-6 9-12-6-30-34-52-68-52z" fill="#D9A878"/>
+    <path d="M100 132c-32 0-58 21-64 48h128c-6-27-32-48-64-48z" fill="#C0863F"/>
+    <!-- neck -->
+    <rect x="88" y="104" width="24" height="30" rx="11" fill="#D9A878"/>
+    <!-- head -->
+    <ellipse cx="100" cy="76" rx="34" ry="38" fill="#E8B98A"/>
+    <!-- hair + tilak -->
+    <path d="M100 34c-22 0-38 14-38 34 0 8 2 14 4 17 2-13 5-22 10-26 6 6 16 9 28 9 11 0 20-3 26-7 4 5 6 14 7 24 3-4 5-11 4-19-2-19-18-32-41-32z" fill="#1F1A26"/>
+    <path d="M100 46c2 5 2 9 0 13-2-4-2-8 0-13z" fill="#E0584A"/>
+    <!-- eyes -->
+    <ellipse cx="88" cy="76" rx="3.4" ry="4" fill="#1F1A26"/>
+    <ellipse cx="112" cy="76" rx="3.4" ry="4" fill="#1F1A26"/>
+    <!-- calm smile -->
+    <path d="M91 92c4 4 14 4 18 0" stroke="#B5825A" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- beard hint -->
+    <path d="M78 84c2 18 10 28 22 28s20-10 22-28c-4 14-11 21-22 21s-18-7-22-21z" fill="#2B2233" opacity="0.55"/>
+  </g>
+</svg>

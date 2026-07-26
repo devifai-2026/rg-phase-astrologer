@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Seeker (customer) avatar for the video-call onboarding mock. Bundled, not
+       fetched: onboarding runs on first login when connectivity is worst. -->
+  <defs>
+    <linearGradient id="bgS" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5B4B8A"/>
+      <stop offset="100%" stop-color="#3A2E5C"/>
+    </linearGradient>
+    <clipPath id="clipS"><rect width="200" height="200"/></clipPath>
+  </defs>
+  <g clip-path="url(#clipS)">
+    <rect width="200" height="200" fill="url(#bgS)"/>
+    <!-- shoulders -->
+    <path d="M100 128c-34 0-62 22-68 52-1 6 3 12 9 12h118c6 0 10-6 9-12-6-30-34-52-68-52z" fill="#E8B98A"/>
+    <path d="M100 132c-32 0-58 21-64 48h128c-6-27-32-48-64-48z" fill="#7C6BAF"/>
+    <!-- neck -->
+    <rect x="88" y="104" width="24" height="30" rx="11" fill="#D9A878"/>
+    <!-- head -->
+    <ellipse cx="100" cy="76" rx="34" ry="38" fill="#E8B98A"/>
+    <!-- hair -->
+    <path d="M100 34c-21 0-36 14-37 33-1 10 2 17 5 20 1-14 4-24 9-28 6 6 17 9 30 9 10 0 19-2 25-6 3 5 5 14 5 25 4-4 6-12 5-22-2-19-17-31-42-31z" fill="#2B2233"/>
+    <!-- eyes -->
+    <ellipse cx="88" cy="76" rx="3.4" ry="4" fill="#2B2233"/>
+    <ellipse cx="112" cy="76" rx="3.4" ry="4" fill="#2B2233"/>
+    <!-- smile -->
+    <path d="M90 92c4 4 16 4 20 0" stroke="#B5825A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

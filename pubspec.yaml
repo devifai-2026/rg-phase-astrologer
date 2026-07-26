@@ -83,6 +83,7 @@ dependencies:
   # Screenshot / screen-recording protection (Android FLAG_SECURE + iOS).
   # Wired per-screen via SecureScreenMixin (lib/widgets/secure_screen.dart).
   no_screenshot: ^0.3.0
+  font_awesome_flutter: ^11.0.0
 
 dev_dependencies:
   flutter_test:
