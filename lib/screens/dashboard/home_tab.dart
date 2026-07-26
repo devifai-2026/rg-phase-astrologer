@@ -38,10 +38,60 @@ class _HomeTabState extends State<HomeTab> {
   int? _optimizerLeft; // remaining profile-optimizer runs this month (null = loading)
   int _pendingRecaps = 0; // chat recaps awaiting review → home badge
 
+  VoidCallback? _unbindRefresh;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) { _loadDashboard(); _loadOptimizerUsage(); _loadRecapCount(); });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDashboard();
+      _loadOptimizerUsage();
+      _loadRecapCount();
+      _bindRealtimeRefresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _unbindRefresh?.call();
+    super.dispose();
+  }
+
+  /// Re-read the dashboard whenever something server-side actually changed it.
+  ///
+  /// Everything here used to load ONCE from initState, so after a consultation
+  /// the Consultation cards still read "0 sessions / 0 min", the wallet still
+  /// showed the pre-session balance, and the AI-recap badge still said "All
+  /// reviewed" — all of it only corrected by killing and reopening the app.
+  /// `wallet-updated` fires on every earning credit and `session-ended` on every
+  /// consultation, so both are exactly the right triggers; recaps are generated
+  /// asynchronously after a session, so `new-notification` catches those.
+  void _bindRealtimeRefresh() {
+    if (!mounted) return;
+    final socket = context.read<SocketService>();
+    final notifs = context.read<NotificationsProvider>();
+
+    void onWallet(_) { if (mounted) _loadDashboard(); }
+    void onEnded(_) {
+      if (!mounted) return;
+      _loadDashboard();   // sessions/minutes/earnings + balance
+      _loadRecapCount();  // a recap may already be queued
+    }
+    // The recap lands a moment after the session ends, announced as a
+    // notification — re-poll the count when the inbox changes.
+    void onNotif() { if (mounted) _loadRecapCount(); }
+
+    final prevWallet = socket.onWalletUpdated;
+    final prevEnded = socket.onSessionEnded;
+    socket.onWalletUpdated = (d) { prevWallet?.call(d); onWallet(d); };
+    socket.onSessionEnded = (d) { prevEnded?.call(d); onEnded(d); };
+    notifs.addListener(onNotif);
+
+    _unbindRefresh = () {
+      socket.onWalletUpdated = prevWallet;
+      socket.onSessionEnded = prevEnded;
+      notifs.removeListener(onNotif);
+    };
   }
 
   Future<void> _loadOptimizerUsage() async {

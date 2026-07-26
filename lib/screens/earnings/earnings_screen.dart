@@ -339,6 +339,17 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
 
   bool get _hasAccount => _payout != null && ((_payout!['accountNumber'] ?? '').toString().isNotEmpty || (_payout!['upi'] ?? '').toString().isNotEmpty);
 
+  /// Admin-configured payout floor (Payments & wallet → Minimum withdrawal).
+  int get _minWithdrawal => (_payout?['minWithdrawal'] as num?)?.toInt() ?? 0;
+
+  /// A withdrawal already awaiting processing. Only ONE may be open at a time —
+  /// each one locks the amount, so stacking them would lock the whole balance and
+  /// leave the admin with overlapping payouts for the same earnings.
+  Map<String, dynamic>? get _openRequest {
+    final o = _payout?['openRequest'];
+    return o is Map ? Map<String, dynamic>.from(o) : null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -376,7 +387,24 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
   Future<void> _submit() async {
     final amt = int.tryParse(_amount.text.trim()) ?? 0;
     final messenger = ScaffoldMessenger.of(context);
+    final open = _openRequest;
+    if (open != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text('A withdrawal of ₹${open['amount']} is already ${open['status']}. Wait for it to complete.'),
+      ));
+      return;
+    }
+    if (!_hasAccount) {
+      messenger.showSnackBar(const SnackBar(content: Text('Add a bank account or UPI first, then request your withdrawal.')));
+      return;
+    }
     if (amt <= 0) { messenger.showSnackBar(const SnackBar(content: Text('Enter a valid amount'))); return; }
+    // Mirror the server's admin-configured floor so the astrologer gets an
+    // instant, specific message rather than a round-trip 400.
+    if (_minWithdrawal > 0 && amt < _minWithdrawal) {
+      messenger.showSnackBar(SnackBar(content: Text('Minimum withdrawal is ₹$_minWithdrawal')));
+      return;
+    }
     if (amt > widget.available) { messenger.showSnackBar(const SnackBar(content: Text('Amount exceeds your available balance'))); return; }
     setState(() => _submitting = true);
     try {
@@ -439,15 +467,31 @@ class _WithdrawSheetState extends State<_WithdrawSheet> {
               ),
             ),
             const SizedBox(height: 18),
+            // Stays TAPPABLE without a payout account on purpose: a dead button
+            // is indistinguishable from a broken one ("Request withdrawal does
+            // nothing on click"). _submit explains what is missing instead.
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: (!_hasAccount || _submitting) ? null : _submit,
+                onPressed: _submitting ? null : _submit,
                 child: _submitting
                     ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                     : const Text('Request withdrawal'),
               ),
             ),
+            if (_openRequest != null) ...[
+              const SizedBox(height: 8),
+              Text('₹${_openRequest!['amount']} is already ${_openRequest!['status']} — one request at a time.',
+                  style: TextStyle(color: c.red, fontSize: 12, fontWeight: FontWeight.w600)),
+            ] else if (!_hasAccount) ...[
+              const SizedBox(height: 8),
+              Text('Add a bank account or UPI above to receive your payout.',
+                  style: TextStyle(color: c.muted, fontSize: 12)),
+            ] else if (_minWithdrawal > 0) ...[
+              const SizedBox(height: 8),
+              Text('Minimum withdrawal is ₹$_minWithdrawal.',
+                  style: TextStyle(color: c.muted, fontSize: 12)),
+            ],
           ],
         ],
       ),

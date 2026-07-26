@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../api/live_api.dart';
 import '../../api/session_api.dart' show RtcToken;
 import '../../api/socket_service.dart';
+import '../../providers/session_provider.dart';
 import '../../i18n/strings.dart';
 import '../../services/agora_live.dart';
 import '../../theme/rg_colors.dart';
@@ -132,9 +133,23 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
     setState(() => _viewers = (m['viewerCount'] as num?)?.toInt() ?? _viewers);
   }
 
+  /// How long the pinned poll stays on the astrologer's screen before it closes
+  /// itself. Long enough to watch the tally fill in, short enough that it isn't
+  /// still covering the broadcast ten minutes later.
+  static const _pollPinDuration = Duration(minutes: 3);
+  Timer? _pollCloseTimer;
+
   void _onPoll(dynamic d) {
     final m = _unwrap(d);
     setState(() => _poll = m);
+    // Restart the window on each update so a poll that is actively collecting
+    // votes isn't dismissed mid-flow.
+    _pollCloseTimer?.cancel();
+    if (m.isNotEmpty) {
+      _pollCloseTimer = Timer(_pollPinDuration, () {
+        if (mounted) setState(() => _poll = null);
+      });
+    }
   }
 
   Map<String, dynamic> _unwrap(dynamic d) {
@@ -152,9 +167,19 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
   }
 
   Future<void> _runPoll() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<LiveApi>().createPoll(widget.liveSessionId);
-    } catch (_) {/* the socket 'live-poll' will reflect it if it succeeds */}
+      // Confirm the send. Generating the poll takes a moment (it's an LLM call),
+      // so without this the astrologer taps and sees nothing change and can't
+      // tell whether it worked.
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Poll sent — results will appear here'),
+        duration: Duration(seconds: 2),
+      ));
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Could not send the poll. Try again.')));
+    }
   }
 
   Future<void> _end({bool auto = false}) async {
@@ -166,6 +191,17 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
       await context.read<LiveApi>().end(widget.liveSessionId, reason: auto ? 'minimize' : 'manual');
     } catch (_) {}
     await _teardown();
+    // Clear the LOCAL busy state and re-assert availability. The server already
+    // drops the busy flag and re-derives presence on endLive, but this screen
+    // never told the provider, so the dashboard kept showing
+    // "Busy — in a consultation" after a live ended while seekers correctly saw
+    // the astrologer as available. Re-asserting also covers the case where the
+    // Agora teardown stalled the socket through the server's broadcast.
+    if (mounted) {
+      final s = context.read<SessionProvider>();
+      s.setInSession(false);
+      if (s.isOnline) context.read<SocketService>().setOnline(true);
+    }
     if (!mounted) return;
     if (auto) {
       // Auto-ended from background: no foreground recap to show — just pop out.
@@ -198,6 +234,7 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
   @override
   void dispose() {
     _bgTimer?.cancel();
+    _pollCloseTimer?.cancel();
     _ticker?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _teardown();
@@ -265,13 +302,17 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
               ),
 
               // ── Comments + poll + controls ──
-              Expanded(
-                flex: 6,
+              // Height follows the CONTENT (capped) instead of a fixed 6/11
+              // share, so the camera preview gets the screen and the astrologer
+              // can actually see themselves. The poll stays pinned above the
+              // comments with its live vote percentages.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.46),
                 child: Container(
                   decoration: BoxDecoration(color: c.ground, borderRadius: const BorderRadius.vertical(top: Radius.circular(18))),
-                  child: Column(children: [
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
                     if (_poll != null) _pollCard(c, _poll!),
-                    Expanded(child: _commentList(c)),
+                    Flexible(child: _commentList(c)),
                     _controls(c),
                   ]),
                 ),
@@ -302,10 +343,16 @@ class _LiveBroadcastScreenState extends State<LiveBroadcastScreen> with WidgetsB
 
   Widget _commentList(RgColors c) {
     if (_comments.isEmpty) {
-      return Center(child: Text(Strings.of(context).commentsWillAppearHere, style: TextStyle(color: c.muted)));
+      // Sized to its text, not centred in the box: the panel is now
+      // content-height, so a Center would re-expand it and shrink the preview.
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Text(Strings.of(context).commentsWillAppearHere, style: TextStyle(color: c.muted)),
+      );
     }
     return ListView.builder(
       controller: _scroll,
+      shrinkWrap: true,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       itemCount: _comments.length,
       itemBuilder: (_, i) {

@@ -209,7 +209,7 @@ class _RecapReviewScreenState extends State<RecapReviewScreen> {
           Expanded(
             child: OutlinedButton.icon(
               icon: const Icon(Icons.thumb_down_alt_outlined),
-              label: Text(Strings.of(context).discard),
+              label: Text(Strings.of(context).discard, maxLines: 1, overflow: TextOverflow.ellipsis, softWrap: false),
               style: OutlinedButton.styleFrom(
                 foregroundColor: c.muted,
                 side: BorderSide(color: c.line),
@@ -225,7 +225,15 @@ class _RecapReviewScreenState extends State<RecapReviewScreen> {
               icon: _busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.thumb_up_alt_outlined),
-              label: Text(_busy ? Strings.of(context).sharing : Strings.of(context).approveShare),
+              // Constrained to ONE line. This is a half-width button with a
+              // leading icon, and the label runs 15 chars in English and 24-27 in
+              // Hindi/Bengali — it wrapped to two lines and stretched the button.
+              label: Text(
+                _busy ? Strings.of(context).sharing : Strings.of(context).approveShare,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: c.green,
                 foregroundColor: Colors.white,
