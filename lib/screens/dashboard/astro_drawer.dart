@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../api/astrologer_api.dart';
+import '../../api/socket_service.dart';
 import '../../i18n/strings.dart';
 import '../../models/astrologer.dart';
 import '../../providers/notifications_provider.dart';
@@ -165,12 +166,19 @@ class AstroDrawer extends StatelessWidget {
 
   Future<void> _logout(BuildContext context) async {
     final api = context.read<AstrologerApi>();
+    final socket = context.read<SocketService>();
     final navigator = Navigator.of(context);
     final notifications = context.read<NotificationsProvider>();
     navigator.pop(); // close the drawer
     // Drop this device's push token (needs the live session), then revoke +
     // clear the session and the cached notification inbox. Best-effort.
     await PushService.instance.unregisterFromBackend();
+    // Go offline and TEAR DOWN THE SOCKET before revoking the token. Logout never
+    // closed it, so the socket lived on with a revoked token — heartbeating and
+    // holding the previous astrologer's presence open server-side until the
+    // server happened to reject it.
+    try { socket.setOnline(false); } catch (_) {}
+    socket.stop(reason: 'logout');
     await api.logout();
     notifications.reset();
     navigator.pushAndRemoveUntil(

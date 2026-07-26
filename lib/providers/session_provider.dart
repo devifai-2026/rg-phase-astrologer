@@ -75,7 +75,12 @@ class SessionProvider extends ChangeNotifier {
   // — showing "Online" with a dead socket is a lie (users would see them offline
   // because the backend derives presence from socketCount). Default true so the
   // UI doesn't flash "Connecting…" before the first socket state arrives.
-  bool _socketLive = true;
+  // Defaults FALSE. It used to default true "so the UI doesn't flash Connecting…",
+  // but it is only ever written from DashboardShell — so every screen before the
+  // dashboard mounts (and everything after it disposes) claimed a live socket that
+  // might not exist. The flash is handled properly by the 2.5s disconnect grace in
+  // SocketService instead of by an optimistic lie here.
+  bool _socketLive = false;
   // Self-requested break end time (server-driven via my-presence). While in the
   // future the astrologer shows BUSY to seekers.
   DateTime? _breakUntil;
@@ -89,9 +94,15 @@ class SessionProvider extends ChangeNotifier {
   /// intent AND a live socket, mirroring how the backend derives presence.
   AvailabilityStatus get status {
     if (!_isOnline) return AvailabilityStatus.offline;
-    if (_inSession || onBreak) return AvailabilityStatus.busy;
-    // Intent is online but the socket dropped → we're not reachable; surface it.
+    // TRANSPORT TRUTH BEFORE OCCUPANCY. `busy` used to outrank `connecting`, so a
+    // socket that died mid-consultation still showed "Busy in a consultation"
+    // while the backend saw no socket and reported the astrologer offline — and
+    // because both toggle segments are disabled while busy, the astrologer was
+    // bricked and could not re-assert. Also, _inSession only clears on
+    // `session-ended`, so a socket that died before that event latched busy
+    // forever. Now a dead link is always visible and the toggle stays usable.
     if (!_socketLive) return AvailabilityStatus.connecting;
+    if (_inSession || onBreak) return AvailabilityStatus.busy;
     return AvailabilityStatus.online;
   }
 

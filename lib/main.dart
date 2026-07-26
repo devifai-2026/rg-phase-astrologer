@@ -12,8 +12,11 @@ import 'api/live_api.dart';
 import 'api/service_feedback_api.dart';
 import 'api/horoscope_api.dart';
 import 'api/panchang_api.dart';
+import 'api/auth_session.dart';
 import 'api/socket_service.dart';
 import 'api/token_store.dart';
+import 'net/app_lifecycle_binder.dart';
+import 'net/host_resolver.dart';
 import 'firebase_options.dart';
 import 'i18n/strings.dart';
 import 'providers/notifications_provider.dart';
@@ -76,7 +79,14 @@ Future<void> main() async {
     if (tag.isNotEmpty) Strings.brandTagline = tag;
   } catch (_) {/* keep neutral default */}
   final api = AstrologerApi(client, tokens);
-  final socket = SocketService(tokens);
+  // One HostResolver + one AuthSession, SHARED by the socket and (in future) the
+  // REST client, so they can never disagree about which host they're on or race
+  // two refreshes against a rotating refresh token.
+  final hostResolver = HostResolver();
+  await hostResolver.load();
+  final authSession = AuthSession(tokens, apiBase: () => hostResolver.apiBase)
+    ..onSessionExpired = () { tokens.clear(); };
+  final socket = SocketService(tokens, resolver: hostResolver, auth: authSession);
   final sessionApi = SessionApi(client);
   final liveApi = LiveApi(client);
   final serviceFeedbackApi = ServiceFeedbackApi(client);
@@ -91,6 +101,18 @@ Future<void> main() async {
   // approving a storefront item) refreshes it so the badge updates instantly.
   final notifications = NotificationsProvider(NotificationApi(client));
   socket.onNewNotification = (_) => notifications.load();
+
+  // GLOBAL link→provider mirror. DashboardShell also binds this, but only while
+  // it is mounted: before the dashboard exists (splash, permissions, onboarding)
+  // and after it disposes, nothing updated _socketLive, so the UI fell back to a
+  // stale value. Binding here means the displayed status always reflects the real
+  // transport for the app's whole lifetime.
+  socket.addListener(() => session.setSocketLive(socket.status.reachable));
+  session.setSocketLive(socket.status.reachable);
+
+  // ONE lifecycle observer for the link (replaces per-screen observers that each
+  // fired their own connect on resume and handled no other state).
+  AppLifecycleBinder(socket: socket, tokens: tokens, resolver: hostResolver).attach();
 
   // ── Consultation realtime wiring ──
   // An incoming request rings a full-screen call-style screen. When the app is
@@ -160,8 +182,12 @@ Future<void> main() async {
   };
   // Cold start with an existing session → connect immediately (goes online),
   // (re)register this device's FCM token, and prime the notification inbox.
-  if (tokens.hasSession) {
-    socket.connect();
+  // hasRefresh, not the old ambiguous hasSession. And socket.start() (not the
+  // old connect()) always ends in a DEFINITE state: it refreshes a missing access
+  // token, and if that fails it lands in LinkState.fatal with a Retry affordance
+  // instead of returning silently and leaving the UI on "Connecting…" forever.
+  if (tokens.hasRefresh) {
+    socket.start();
     PushService.instance.registerWithBackend(); // fire-and-forget; self-heals on token refresh
     notifications.load(); // fire-and-forget; primes the bell badge + inbox
     // RESUME: the app may have been killed / swiped out of RAM mid-consultation.

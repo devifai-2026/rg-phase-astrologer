@@ -24,6 +24,12 @@ class ApiConfig {
   /// True when a distinct, non-empty fallback host is configured.
   static bool get hasFallback => fallbackHost.isNotEmpty && fallbackHost != host;
 
+  /// Every host to try, PRIMARY FIRST. This is the input to HostResolver, which
+  /// owns the actual choice — prefer `resolver.apiBase` over [apiBase] in new
+  /// code so REST, the socket and the FCM isolate can never disagree about which
+  /// host they're on (they used to keep three independent flags).
+  static List<String> get candidateHosts => [host, if (hasFallback) fallbackHost];
+
   /// REST base — every endpoint is relative to this.
   static String get apiBase => '$host/api';
   static String get fallbackApiBase => '$fallbackHost/api';
