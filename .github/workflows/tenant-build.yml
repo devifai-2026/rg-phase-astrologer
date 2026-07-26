@@ -48,9 +48,26 @@ jobs:
           set -e
           mkdir -p assets/icon
           echo "Downloading launcher icon from ${{ inputs.app_icon }}"
-          curl -fsSL "${{ inputs.app_icon }}" -o assets/icon/app_icon.png
-          # Sanity: must be a real PNG (guards against an HTML error page).
-          file assets/icon/app_icon.png | grep -qi 'PNG image' || { echo "::error::app_icon is not a PNG"; exit 1; }
+          curl -fsSL "${{ inputs.app_icon }}" -o /tmp/app_icon.src
+          # Guard against an HTML error page / truncated download masquerading as
+          # an image — that is what this check is really for.
+          kind=$(file -b --mime-type /tmp/app_icon.src)
+          case "$kind" in
+            image/*) : ;;
+            *) echo "::error::app_icon is not an image (got $kind). Upload a PNG or JPG."; exit 1 ;;
+          esac
+          # ACCEPT ANY IMAGE FORMAT. flutter_launcher_icons needs a PNG, but the
+          # console lets an owner upload PNG/JPG/WebP and rejecting a JPG failed the
+          # whole build over a file format we can simply convert. ImageMagick is
+          # preinstalled on ubuntu-latest runners. Flatten onto white: a launcher
+          # icon has no alpha channel, and a JPG has none to begin with.
+          if [ "$kind" = "image/png" ]; then
+            cp /tmp/app_icon.src assets/icon/app_icon.png
+          else
+            echo "Converting $kind -> PNG"
+            convert /tmp/app_icon.src -background white -alpha remove -alpha off assets/icon/app_icon.png
+          fi
+          file assets/icon/app_icon.png | grep -qi 'PNG image' || { echo "::error::icon conversion failed"; exit 1; }
           dart run flutter_launcher_icons
           echo "Launcher icon generated for tenant ${{ inputs.tenant }}"
 
