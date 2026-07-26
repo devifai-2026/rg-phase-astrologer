@@ -164,6 +164,11 @@ Future<void> main() async {
     socket.connect();
     PushService.instance.registerWithBackend(); // fire-and-forget; self-heals on token refresh
     notifications.load(); // fire-and-forget; primes the bell badge + inbox
+    // RESUME: the app may have been killed / swiped out of RAM mid-consultation.
+    // Ask the server for a still-live session and re-enter it (rejoining the
+    // socket room and reloading the transcript) instead of landing on the
+    // dashboard while the seeker is still being billed.
+    session.resumeFromActive(sessionApi, socket);
   }
 
   runApp(RgAstrologerApp(settings: settings, api: api, socket: socket, notifications: notifications, session: session, sessionApi: sessionApi, liveApi: liveApi, serviceFeedbackApi: serviceFeedbackApi, horoscopeApi: horoscopeApi, panchangApi: panchangApi));

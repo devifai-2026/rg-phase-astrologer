@@ -58,6 +58,10 @@ class EarningsScreen extends StatefulWidget {
 
 class _EarningsScreenState extends State<EarningsScreen> {
   _EarningsData? _data;
+  /// Explicit loading flag. `_data == null` alone can't distinguish "still
+  /// loading" from "loaded, nothing to show", which made the spinner run forever
+  /// on an account with no earnings yet.
+  bool _loading = true;
   String? _error;
 
   @override
@@ -69,7 +73,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
   Future<void> _load() async {
     final api = context.read<AstrologerApi>();
     final sessionApi = context.read<SessionApi>();
-    final strings = Strings.of(context);
+    if (mounted) setState(() => _loading = true);
     try {
       final results = await Future.wait([
         api.myStats(),
@@ -94,9 +98,17 @@ class _EarningsScreenState extends State<EarningsScreen> {
           recent: recent,
         );
         _error = null;
+        _loading = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _error = strings.couldNotLoadEarnings);
+      // Resolved here, not up front: _load() runs from initState() where
+      // Strings.of(context) throws, which aborted the fetch and left the tab
+      // stuck on its spinner.
+      if (mounted) setState(() { _error = Strings.of(context).couldNotLoadEarnings; _loading = false; });
+    } finally {
+      // Any path escaping the try/catch must still clear the spinner, or the
+      // screen is stuck on a loader with no way to recover.
+      if (mounted && _loading) setState(() => _loading = false);
     }
   }
 
@@ -128,8 +140,29 @@ class _EarningsScreenState extends State<EarningsScreen> {
         ),
       ]);
     }
-    if (data == null) {
+    // Spinner ONLY while a request is in flight.
+    if (_loading && data == null) {
       return ListView(children: const [SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))]);
+    }
+    // Loaded but nothing came back — show an empty state, not an endless spinner.
+    if (data == null) {
+      return ListView(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(32, 120, 32, 0),
+          child: Column(children: [
+            Icon(Icons.account_balance_wallet_outlined, size: 48, color: c.muted),
+            const SizedBox(height: 12),
+            Text(Strings.of(context).noEarningsYet,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: c.ink, fontSize: 15, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(Strings.of(context).noEarningsYetHint,
+                textAlign: TextAlign.center, style: TextStyle(color: c.muted, fontSize: 13, height: 1.4)),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: _load, child: Text(Strings.of(context).retry)),
+          ]),
+        ),
+      ]);
     }
 
     return ListView(

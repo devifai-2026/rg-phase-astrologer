@@ -36,8 +36,13 @@ class OnboardCard {
 class OnboardModule {
   final String key;
   final String name;
+  /// Optional localized module name — wins over [name] at render time (a const
+  /// module can't call Strings.of(context), so translatable ones pass this).
+  final String Function(BuildContext)? nameL10n;
   final List<OnboardCard> cards;
-  const OnboardModule({required this.key, required this.name, required this.cards});
+  const OnboardModule({required this.key, required this.name, this.nameL10n, required this.cards});
+
+  String resolvedName(BuildContext ctx) => nameL10n != null ? nameL10n!(ctx) : name;
 }
 
 /// A full-screen player for one or more modules' cards, with a paged, animated
@@ -97,7 +102,7 @@ class _ModuleOnboardingState extends State<ModuleOnboarding> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 12, 0),
               child: Row(children: [
-                Text(_all[_page].$1.name, style: TextStyle(color: c.gold, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.4)),
+                Text(_all[_page].$1.resolvedName(context), style: TextStyle(color: c.gold, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.4)),
                 const Spacer(),
                 TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(Strings.of(context).skip, style: TextStyle(color: c.muted, fontWeight: FontWeight.w600))),
               ]),

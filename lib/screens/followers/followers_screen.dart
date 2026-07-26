@@ -25,12 +25,13 @@ class _FollowersScreenState extends State<FollowersScreen> {
   }
 
   Future<void> _load() async {
-    final strings = Strings.of(context);
     try {
       final list = await context.read<AstrologerApi>().myFollowers(limit: 100);
       if (mounted) setState(() => _items = list);
     } catch (_) {
-      if (mounted) setState(() => _error = strings.couldNotLoadFollowers);
+      // Resolved in the catch, not up front: _load() runs from initState()
+      // where Strings.of(context) throws, aborting the fetch before it starts.
+      if (mounted) setState(() => _error = Strings.of(context).couldNotLoadFollowers);
     }
   }
 

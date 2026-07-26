@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_auth/smart_auth.dart';
 
@@ -266,6 +267,24 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                           prefixIconConstraints: const BoxConstraints(minWidth: 0),
                         ),
                         validator: (v) => (v ?? '').trim().length != 10 ? t.errInvalidPhone : null,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // OTP is delivered over WhatsApp (WABridge), so the number
+                      // must be on WhatsApp — say so before they submit.
+                      Row(
+                        children: [
+                          // Brand green (#25D366) so it reads as the real logo.
+                          const FaIcon(FontAwesomeIcons.whatsapp,
+                              size: 15, color: Color(0xFF25D366)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              t.phoneWhatsappNote,
+                              style: TextStyle(fontSize: 12.5, color: c.muted, height: 1.35),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 

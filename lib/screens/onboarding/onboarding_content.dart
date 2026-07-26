@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../i18n/strings.dart';
 import '../../theme/rg_colors.dart';
@@ -60,19 +61,25 @@ Widget _pad(Widget child) => Padding(padding: const EdgeInsets.all(12), child: c
 
 final List<OnboardModule> onboardModules = [
   // 1) CHAT
-  OnboardModule(key: 'chat', name: 'CHAT CONSULTATIONS', cards: [
+  OnboardModule(key: 'chat', name: 'CHAT CONSULTATIONS', nameL10n: (ctx) => Strings.of(ctx).onbModChat, cards: [
     OnboardCard(
-      title: 'Answer seekers by chat',
-      body: 'Go online and accept incoming chat requests. You\'re billed per minute — your earnings tick up live.',
+      titleL10n: (ctx) => Strings.of(ctx).onbChatTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbChatBody,
       icon: Icons.chat_bubble,
       tint: (c) => c.blue,
       mock: (ctx, c) => Column(children: [
         _statusBar(c, Strings.of(ctx).chatMeera0412, c.blue),
-        Expanded(child: _pad(Column(children: [
-          _bubble(c, Strings.of(ctx).namasteQuestionOnMyCareer, mine: false),
-          _bubble(c, Strings.of(ctx).shareYourDateTimeOfBirth, mine: true),
-          _bubble(c, Strings.of(ctx).s14Aug1996930Am, mine: false),
-        ]))),
+        // Scrollable: the phone frame is a fixed 290px, and translated bubble
+        // text wraps to more lines than English (overflowed by ~2px in some
+        // locales). Clipping/scrolling beats a hard overflow in a decorative mock.
+        Expanded(child: _pad(SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(children: [
+            _bubble(c, Strings.of(ctx).namasteQuestionOnMyCareer, mine: false),
+            _bubble(c, Strings.of(ctx).shareYourDateTimeOfBirth, mine: true),
+            _bubble(c, Strings.of(ctx).s14Aug1996930Am, mine: false),
+          ]),
+        ))),
         Container(padding: const EdgeInsets.all(8), color: c.ground2, child: Row(children: [
           Expanded(child: Container(height: 26, decoration: BoxDecoration(color: c.ground, borderRadius: BorderRadius.circular(13), border: Border.all(color: c.line)))),
           const SizedBox(width: 6),
@@ -83,10 +90,10 @@ final List<OnboardModule> onboardModules = [
   ]),
 
   // 2) CALL
-  OnboardModule(key: 'call', name: 'VOICE CALLS', cards: [
+  OnboardModule(key: 'call', name: 'VOICE CALLS', nameL10n: (ctx) => Strings.of(ctx).onbModCall, cards: [
     OnboardCard(
-      title: 'Take voice calls',
-      body: 'When you\'re Online & Available, seekers ring you. Accept within the 60-second ring to start earning.',
+      titleL10n: (ctx) => Strings.of(ctx).onbCallTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbCallBody,
       icon: Icons.call,
       tint: (c) => c.green,
       mock: (ctx, c) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -105,18 +112,28 @@ final List<OnboardModule> onboardModules = [
   ]),
 
   // 3) VIDEO
-  OnboardModule(key: 'video', name: 'VIDEO CONSULTATIONS', cards: [
+  OnboardModule(key: 'video', name: 'VIDEO CONSULTATIONS', nameL10n: (ctx) => Strings.of(ctx).onbModVideo, cards: [
     OnboardCard(
-      title: 'Face-to-face on video',
-      body: 'Offer video readings at a premium rate. Mute, camera and end-call controls are built in.',
+      titleL10n: (ctx) => Strings.of(ctx).onbVideoTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbVideoBody,
       icon: Icons.videocam,
       tint: (c) => c.violet,
       mock: (ctx, c) => Column(children: [
         Expanded(child: Container(
           decoration: BoxDecoration(gradient: LinearGradient(colors: [c.violet.withValues(alpha: 0.4), c.ground])),
           child: Stack(children: [
-            const Center(child: Icon(Icons.person, color: Colors.white24, size: 56)),
-            Positioned(right: 8, top: 8, child: Container(height: 44, width: 32, decoration: BoxDecoration(color: c.ground2, borderRadius: BorderRadius.circular(6), border: Border.all(color: c.line)), child: Icon(Icons.person, color: c.muted, size: 18))),
+            // Bundled illustrations, not network images: this walkthrough plays on
+            // first login, exactly when connectivity is least reliable.
+            Positioned.fill(child: SvgPicture.asset('assets/images/avatar_seeker.svg', fit: BoxFit.cover)),
+            // Self-view picture-in-picture.
+            Positioned(right: 8, top: 8, child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: 44, width: 32,
+                decoration: BoxDecoration(color: c.ground2, border: Border.all(color: c.line)),
+                child: SvgPicture.asset('assets/images/avatar_astrologer.svg', fit: BoxFit.cover),
+              ),
+            )),
             Positioned(left: 8, top: 8, child: Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3), decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(10)), child: const Text('12:40', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)))),
           ]),
         )),
@@ -128,10 +145,10 @@ final List<OnboardModule> onboardModules = [
   ]),
 
   // 4) AI PROFILE OPTIMIZER
-  OnboardModule(key: 'optimizer', name: 'AI PROFILE OPTIMIZER', cards: [
+  OnboardModule(key: 'optimizer', name: 'AI PROFILE OPTIMIZER', nameL10n: (ctx) => Strings.of(ctx).onbModOptimizer, cards: [
     OnboardCard(
-      title: 'AI scores your profile',
-      body: 'Our AI reviews your photo, bio, pricing, languages, expertise and availability, then scores your profile out of 100.',
+      titleL10n: (ctx) => Strings.of(ctx).onbOptTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbOptBody,
       icon: Icons.auto_fix_high,
       tint: (c) => c.violet,
       mock: (ctx, c) => _pad(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -155,8 +172,8 @@ final List<OnboardModule> onboardModules = [
       ])),
     ),
     OnboardCard(
-      title: 'Apply fixes in one tap',
-      body: 'Each suggestion is ranked by impact. Tap Apply and watch your score — and your visibility — climb.',
+      titleL10n: (ctx) => Strings.of(ctx).onbOptApplyTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbOptApplyBody,
       icon: Icons.trending_up,
       tint: (c) => c.green,
       mock: (ctx, c) => _pad(Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -172,7 +189,7 @@ final List<OnboardModule> onboardModules = [
   ]),
 
   // 5) GO LIVE + how AI works
-  OnboardModule(key: 'live', name: 'GO LIVE', cards: [
+  OnboardModule(key: 'live', name: 'GO LIVE', nameL10n: (ctx) => Strings.of(ctx).onbModLive, cards: [
     OnboardCard(
       titleL10n: (ctx) => Strings.of(ctx).hostALiveSession,
       bodyL10n: (ctx) => Strings.of(ctx).broadcastALiveQAViewers,
@@ -238,10 +255,10 @@ final List<OnboardModule> onboardModules = [
   ]),
 
   // 6) STOREFRONT
-  OnboardModule(key: 'storefront', name: 'YOUR STOREFRONT', cards: [
+  OnboardModule(key: 'storefront', name: 'YOUR STOREFRONT', nameL10n: (ctx) => Strings.of(ctx).onbModStorefront, cards: [
     OnboardCard(
-      title: 'Sell from your storefront',
-      body: 'List your own products and poojas in a link-in-bio style storefront that seekers can browse and buy.',
+      titleL10n: (ctx) => Strings.of(ctx).onbStoreTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbStoreBody,
       icon: Icons.storefront,
       tint: (c) => c.gold,
       mock: (ctx, c) => _pad(Column(children: [
@@ -269,8 +286,8 @@ final List<OnboardModule> onboardModules = [
       ])),
     ),
     OnboardCard(
-      title: 'Admin approves & sets commission',
-      body: 'Every listing is reviewed by the admin, who sets a commission % on each sale. You keep the rest — tracked per item.',
+      titleL10n: (ctx) => Strings.of(ctx).onbStoreAdminTitle,
+      bodyL10n: (ctx) => Strings.of(ctx).onbStoreAdminBody,
       icon: Icons.verified,
       tint: (c) => c.green,
       mock: (ctx, c) => _pad(Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [

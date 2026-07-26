@@ -404,11 +404,16 @@ class _HoroscopeScreenState extends State<HoroscopeScreen> {
       context: context,
       backgroundColor: c.ground2,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      // 9 languages exceed the default 50%-of-screen cap on shorter devices.
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 12),
           Container(width: 40, height: 4, decoration: BoxDecoration(color: c.line, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 8),
+          Flexible(child: ListView(shrinkWrap: true, padding: EdgeInsets.zero, children: [
           for (final locale in SettingsProvider.supportedLocales)
             ListTile(
               title: Text(
@@ -418,8 +423,10 @@ class _HoroscopeScreenState extends State<HoroscopeScreen> {
               trailing: _lang == locale.languageCode ? Icon(Icons.check_circle, color: c.red) : null,
               onTap: () => Navigator.of(ctx).pop(locale.languageCode),
             ),
+          ])),
           const SizedBox(height: 8),
         ]),
+        ),
       ),
     );
     if (picked != null && picked != _lang) {

@@ -149,7 +149,12 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(width: 12),
             _QuickAction(
-              icon: Icons.storefront, label: 'My\nStorefront', tint: c.gold,
+              // Reuses the already-translated myStorefront key. The newline that
+              // used to be hardcoded is applied here instead, so translations
+              // don't each have to carry a literal \n.
+              icon: Icons.storefront,
+              label: Strings.of(context).myStorefront.replaceFirst(' ', '\n'),
+              tint: c.gold,
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const StorefrontScreen())),
             ),
           ]),

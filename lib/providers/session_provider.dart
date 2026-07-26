@@ -497,6 +497,44 @@ class SessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// COLD START: ask the server whether this astrologer is still mid-session
+  /// and, if so, re-enter it. Without this the app came up on the dashboard
+  /// after being killed / swiped out of RAM, silently abandoning a chat the
+  /// seeker is still being billed for.
+  ///
+  /// [api] is the astrologer SessionApi; [socket] rejoins the room so live
+  /// events resume. Safe to call repeatedly — no-ops once a session is active.
+  Future<bool> resumeFromActive(dynamic api, dynamic socket) async {
+    if (_inSession) return true;
+    try {
+      final res = await api.active();
+      if (res == null) return false;
+      final s = Map<String, dynamic>.from(res.session as Map);
+      final sid = s['sessionId']?.toString();
+      if (sid == null) return false;
+
+      final typeStr = (s['type'] ?? 'chat').toString();
+      final kind = typeStr == 'call'
+          ? ServiceKind.call
+          : typeStr == 'video'
+              ? ServiceKind.video
+              : ServiceKind.chat;
+
+      startActive(sessionId: sid, kind: kind, alias: (s['seekerAlias'] ?? 'Seeker').toString());
+      try { socket.joinSession(sid); } catch (_) {/* socket connects shortly after */}
+
+      // Re-anchor the timer to the server's start time.
+      final startedAt = s['startedAt'];
+      if (startedAt != null) onSessionStarted({'sessionId': sid, 'startedAt': startedAt});
+
+      if (kind == ServiceKind.chat) await loadMessages(api);
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Rehydrate the transcript from the server (GET /sessions/:id/messages) —
   /// called on open/resume of an ongoing session so history survives an app
   /// kill or background gap. Clear-then-fill keeps repeated calls idempotent.

@@ -33,7 +33,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final strings = Strings.of(context);
     try {
       final list = await context.read<SessionApi>().history(limit: 50, type: _filter);
       if (!mounted) return;
@@ -45,9 +44,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = strings.couldNotLoadHistory;
+        // Resolve the string HERE, not before the request: _load() runs from
+        // initState(), where Strings.of(context) throws — which aborted the
+        // fetch before it started and left the "All" tab spinning forever.
+        _error = Strings.of(context).couldNotLoadHistory;
         _loading = false;
       });
+    } finally {
+      // Belt-and-braces: any path that escapes the try/catch above (e.g. an
+      // error thrown while building the new state) must still clear the spinner,
+      // otherwise the screen is stuck on a loader with no way to recover.
+      if (mounted && _loading) setState(() => _loading = false);
     }
   }
 
