@@ -127,6 +127,16 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
   // Detaches the socket-liveness listener bound in _bindPresenceSync.
   VoidCallback? _unbindLive;
 
+  /// Cached so [dispose] can clear our presence hooks without doing an
+  /// inherited-widget lookup (illegal once the element is deactivated).
+  SocketService? _socket;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _socket = context.read<SocketService>();
+  }
+
   void _onTabRequest() {
     final req = DashboardShell.tabRequest.value;
     if (req == null || !mounted) return;
@@ -148,10 +158,18 @@ class _DashboardShellState extends State<DashboardShell> with WidgetsBindingObse
     WidgetsBinding.instance.removeObserver(this);
     DashboardShell.tabRequest.removeListener(_onTabRequest);
     _unbindLive?.call();
-    // Drop our presence hooks so a disposed shell isn't called back.
-    final socket = context.read<SocketService>();
-    socket.onPresence = null;
-    socket.onConnected = null;
+    // Drop our presence hooks so a disposed shell isn't called back. Uses the
+    // reference cached in didChangeDependencies, NOT context.read() — an
+    // inherited-widget lookup during dispose throws "Looking up a deactivated
+    // widget's ancestor is unsafe", which aborted the whole tree finalisation
+    // (cascading into "BoxConstraints forces an infinite width" and a pile of
+    // "RenderBox was not laid out"). That left the astrologer stranded on the
+    // consultation screen after the session ended.
+    final socket = _socket;
+    if (socket != null) {
+      socket.onPresence = null;
+      socket.onConnected = null;
+    }
     super.dispose();
   }
 
