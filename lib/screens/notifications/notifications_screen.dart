@@ -5,6 +5,7 @@ import '../../api/notification_api.dart';
 import '../../i18n/strings.dart';
 import '../../providers/notifications_provider.dart';
 import '../../theme/rg_colors.dart';
+import '../../services/astro_deep_link.dart';
 
 /// Notifications inbox — bound to the backend /notifications API via
 /// [NotificationsProvider]. Shows admin/system notifications (e.g. a storefront
@@ -141,7 +142,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            onTap: () => context.read<NotificationsProvider>().markRead(n),
+            // Mark read AND follow the notification's deeplink. Tapping only
+            // marked it read before, so an actionable notification (withdrawal
+            // approved/rejected, a storefront approval) was a dead end in-app even
+            // though the same payload routes correctly when tapped from the OS tray.
+            onTap: () {
+              context.read<NotificationsProvider>().markRead(n);
+              final link = n.data['deeplink'];
+              if (link is String && link.isNotEmpty) AstroDeepLink.open(link);
+            },
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
