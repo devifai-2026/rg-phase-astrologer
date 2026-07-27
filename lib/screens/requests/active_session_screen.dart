@@ -172,8 +172,21 @@ class _ActiveSessionScreenState extends State<ActiveSessionScreen> with SecureSc
     final id = session.activeSessionId;
     if (id == null) return;
     _input.clear();
-    socket.sendMessage(id, message: text);
-    session.addLiveMessage({'sessionId': id, 'kind': 'user', 'sender': 'me', 'message': text, 'timestamp': DateTime.now().toIso8601String()});
+    final messenger = ScaffoldMessenger.of(context);
+    final stamp = DateTime.now().toIso8601String();
+    socket.sendMessage(id, message: text, ack: (resp) {
+      // Abusive language is refused outright rather than masked. Without this
+      // the optimistic bubble below stayed on screen and the message looked
+      // delivered when the server had dropped it.
+      if (resp is Map && resp['success'] == false) {
+        if (!mounted) return;
+        session.removeLiveMessage(sessionId: id, timestamp: stamp);
+        messenger.showSnackBar(SnackBar(
+          content: Text(resp['message']?.toString() ?? Strings.of(context).somethingWentWrong),
+        ));
+      }
+    });
+    session.addLiveMessage({'sessionId': id, 'kind': 'user', 'sender': 'me', 'message': text, 'timestamp': stamp});
   }
 
   Future<void> _sendImage() async {

@@ -525,6 +525,15 @@ class SessionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Withdraw an optimistic bubble the server refused (e.g. abusive language).
+  /// Matched on the timestamp the sender stamped it with, which is unique enough
+  /// for a locally-added message and avoids inventing a client-side id scheme.
+  void removeLiveMessage({required String sessionId, required String timestamp}) {
+    if (sessionId != activeSessionId) return;
+    liveMessages.removeWhere((m) => m['timestamp'] == timestamp && m['sender'] == 'me');
+    notifyListeners();
+  }
+
   /// COLD START: ask the server whether this astrologer is still mid-session
   /// and, if so, re-enter it. Without this the app came up on the dashboard
   /// after being killed / swiped out of RAM, silently abandoning a chat the

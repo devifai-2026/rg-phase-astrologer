@@ -508,14 +508,26 @@ class SocketService extends ChangeNotifier {
   void rejectSession(String sessionId) => _socket?.emit('reject-session', {'sessionId': sessionId});
   void joinSession(String sessionId) => _socket?.emit('join-session', {'sessionId': sessionId});
   void endSession(String sessionId) => _socket?.emit('end-session', {'sessionId': sessionId});
-  void sendMessage(String sessionId, {String? message, String? mediaUrl, String? mediaType, String? productId}) {
-    _socket?.emit('send-message', {
+  /// [ack] receives the server's response. It matters: a message can be REFUSED
+  /// (abusive language is rejected, not masked), and without an ack the sender
+  /// sees their own optimistic bubble and assumes it was delivered.
+  void sendMessage(String sessionId, {String? message, String? mediaUrl, String? mediaType, String? productId,
+      void Function(dynamic)? ack}) {
+    final payload = {
       'sessionId': sessionId,
       if (message != null) 'message': message,
       if (mediaUrl != null) 'mediaUrl': mediaUrl,
       if (mediaType != null) 'mediaType': mediaType,
       if (productId != null) 'productId': productId, // astrologer shares a product card
-    });
+    };
+    if (ack == null) {
+      _socket?.emit('send-message', payload);
+    } else {
+      // socket_io_client hands the ack payload back as a List [data, ackId] on
+      // Android — unwrap it so callers get the response object itself.
+      _socket?.emitWithAck('send-message', payload,
+          ack: (d) => ack(d is List && d.isNotEmpty ? d.first : d));
+    }
   }
   void markRead(String sessionId, String to) => _socket?.emit('mark-read', {'sessionId': sessionId, 'to': to});
 
