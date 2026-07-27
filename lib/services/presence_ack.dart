@@ -28,11 +28,22 @@ class PresenceAck {
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       validateStatus: (s) => s != null && s < 500,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        // This Dio is built inside the headless FCM isolate and does NOT go
+        // through ApiClient, so the tenant header has to be set by hand or the
+        // request lands on the default tenant.
+        if (ApiConfig.tenant.isNotEmpty) 'X-Tenant': ApiConfig.tenant,
+      },
     ));
 
+    // Send an explicit empty JSON object. Posting NO body with
+    // `Content-Type: application/json` made express.json() reject the request
+    // with a 400 before it reached the handler, so every ACK was discarded and
+    // the astrologer was swept offline while genuinely reachable.
     Future<Response> post(String? access) => dio.post(
           '/astrologers/me/presence-ack',
+          data: const <String, dynamic>{},
           options: Options(headers: {
             if (access != null && access.isNotEmpty) 'Authorization': 'Bearer $access',
           }),

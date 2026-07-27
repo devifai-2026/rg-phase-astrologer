@@ -30,7 +30,13 @@ class DeliveryAck {
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
       validateStatus: (s) => s != null && s < 500,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        // This Dio is built inside the headless FCM isolate and does NOT go
+        // through ApiClient, so the tenant header has to be set by hand or the
+        // request lands on the default tenant.
+        if (ApiConfig.tenant.isNotEmpty) 'X-Tenant': ApiConfig.tenant,
+      },
     ));
 
     Future<Response> post(String? access) => dio.post(
